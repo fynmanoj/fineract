@@ -1610,7 +1610,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                 .append(" and (((ls.fee_charges_amount <> if(ls.accrual_fee_charges_derived is null,0, ls.accrual_fee_charges_derived))")
                 .append(" or ( ls.penalty_charges_amount <> if(ls.accrual_penalty_charges_derived is null,0,ls.accrual_penalty_charges_derived))")
                 .append(" or ( ls.interest_amount <> if(ls.accrual_interest_derived is null,0,ls.accrual_interest_derived)))")
-                .append(" and loan.loan_status_id=:active and mpl.accounting_type=:type and loan.is_npa=0 and ls.duedate <= CURDATE()) ");
+                .append(" and loan.loan_status_id=:active and mpl.accounting_type=:type and ls.duedate <= CURDATE()) ");
         if(organisationStartDate != null){
             sqlBuilder.append(" and ls.duedate > :organisationstartdate ");
         }
@@ -1659,7 +1659,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                     .append("loan.id as loanId ,if(loan.client_id is null,mg.office_id,mc.office_id) as officeId,")
                     .append("loan.accrued_till as accruedTill, loan.repayment_period_frequency_enum as frequencyEnum, ")
                     .append("loan.interest_calculated_from_date as interestCalculatedFrom, ")
-                    .append("loan.repay_every as repayEvery,")
+                    .append("loan.repay_every as repayEvery, loan.is_npa as isNpa, ")
                     .append("ls.installment as installmentNumber, ")
                     .append("ls.duedate as duedate,ls.fromdate as fromdate ,ls.id as scheduleId,loan.product_id as productId,")
                     .append("ls.interest_amount as interest, ls.interest_waived_derived as interestWaived,")
@@ -1684,6 +1684,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
             final LocalDate accruedTill = JdbcSupport.getLocalDate(rs, "accruedTill");
             final LocalDate interestCalculatedFrom = JdbcSupport.getLocalDate(rs, "interestCalculatedFrom");
             final Integer installmentNumber = JdbcSupport.getInteger(rs, "installmentNumber");
+            final boolean isNpa = rs.getBoolean("isNpa");
 
             final Integer frequencyEnum = JdbcSupport.getInteger(rs, "frequencyEnum");
             final Integer repayEvery = JdbcSupport.getInteger(rs, "repayEvery");
@@ -1711,7 +1712,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
 
             return new LoanScheduleAccrualData(loanId, officeId, installmentNumber, accruedTill, frequency, repayEvery, dueDate, fromDate,
                     repaymentScheduleId, loanProductId, interestIncome, feeIncome, penaltyIncome, accruedInterestIncome, accruedFeeIncome,
-                    accruedPenaltyIncome, currencyData, interestCalculatedFrom, interestIncomeWaived);
+                    accruedPenaltyIncome, currencyData, interestCalculatedFrom, interestIncomeWaived, isNpa);
         }
 
     }
@@ -1730,6 +1731,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                     .append("ls.accrual_interest_derived as accinterest,ls.accrual_fee_charges_derived as accfeecharege,ls.accrual_penalty_charges_derived as accpenalty,")
                     .append(" loan.currency_code as currencyCode,loan.currency_digits as currencyDigits,loan.currency_multiplesof as inMultiplesOf,")
                     .append("curr.display_symbol as currencyDisplaySymbol,curr.name as currencyName,curr.internationalized_name_code as currencyNameCode")
+                    .append(" ,loan.is_npa as isNpa ")
                     .append(" from m_loan_repayment_schedule ls ").append(" left join m_loan loan on loan.id=ls.loan_id ")
                     .append(" left join m_product_loan mpl on mpl.id = loan.product_id")
                     .append(" left join m_client mc on mc.id = loan.client_id ").append(" left join m_group mg on mg.id = loan.group_id")
@@ -1755,6 +1757,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
             final BigDecimal accruedInterestIncome = JdbcSupport.getBigDecimalDefaultToNullIfZero(rs, "accinterest");
             final BigDecimal accruedFeeIncome = JdbcSupport.getBigDecimalDefaultToNullIfZero(rs, "accfeecharege");
             final BigDecimal accruedPenaltyIncome = JdbcSupport.getBigDecimalDefaultToNullIfZero(rs, "accpenalty");
+            final boolean isNpa = rs.getBoolean("isNpa");
 
             final String currencyCode = rs.getString("currencyCode");
             final String currencyName = rs.getString("currencyName");
@@ -1770,7 +1773,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
             final LocalDate interestCalculatedFrom = null;
             return new LoanScheduleAccrualData(loanId, officeId, installmentNumber, accruedTill, frequency, repayEvery, dueDate, fromdate,
                     repaymentScheduleId, loanProductId, interestIncome, feeIncome, penaltyIncome, accruedInterestIncome, accruedFeeIncome,
-                    accruedPenaltyIncome, currencyData, interestCalculatedFrom, interestIncomeWaived);
+                    accruedPenaltyIncome, currencyData, interestCalculatedFrom, interestIncomeWaived, isNpa);
         }
     }
 
@@ -2218,4 +2221,21 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
 			throw new LoanNotFoundException(accountId);
 		}
 	}
+
+    @Override
+    public Collection<Long> retriveNewNPALoans() {
+
+        final String sql = new StringBuilder(900)
+                .append("select loan.id from m_loan_repayment_schedule mr ")
+                .append(" INNER JOIN  m_loan loan on mr.loan_id = loan.id  ")
+                .append("INNER JOIN m_product_loan mpl on mpl.id = loan.product_id AND mpl.overdue_days_for_npa is not null ")
+                .append("WHERE loan.loan_status_id = ? and loan.is_npa = 0 ")
+                .append("and (mr.principal_amount + mr.interest_amount - IFNULL(mr.principal_completed_derived,0) ")
+                .append("- IFNULL(mr.principal_writtenoff_derived,0) - IFNULL(mr.interest_completed_derived,0) ")
+                .append("- IFNULL(mr.interest_waived_derived,0) - IFNULL(mr.interest_writtenoff_derived,0))>0 ")
+                .append(" and mr.duedate < SUBDATE(?,INTERVAL  ifnull(mpl.overdue_days_for_npa,0) day) group by loan.id").toString();
+        return this.jdbcTemplate.queryForList(sql, Long.class, LoanStatus.ACTIVE.getValue(),
+                formatter.print(DateUtils.getCurrentDateTimeOfTenant()));
+    }
+
 }

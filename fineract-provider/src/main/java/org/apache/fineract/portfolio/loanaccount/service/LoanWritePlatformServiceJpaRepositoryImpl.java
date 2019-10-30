@@ -180,6 +180,7 @@ import org.apache.fineract.portfolio.savings.domain.SavingsAccount;
 import org.apache.fineract.portfolio.savings.exception.InsufficientAccountBalanceException;
 import org.apache.fineract.portfolio.transfer.api.TransferApiConstants;
 import org.apache.fineract.useradministration.domain.AppUser;
+import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -955,6 +956,32 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
             }
             this.loanTransactionRepository.save(newTransactionDetail);
         }
+
+        MonetaryCurrency currency = loan.getCurrency();
+        //Todo: check properly for the transaction type
+        if (transactionToAdjust.getLoan().isNpa()
+                && (transactionToAdjust.getInterestPortion(currency).isNotEqualTo(newTransactionDetail.getInterestPortion(currency))
+                || transactionToAdjust.getFeeChargesPortion(currency).isNotEqualTo(
+                newTransactionDetail.getFeeChargesPortion(currency)) || transactionToAdjust.getPenaltyChargesPortion(
+                currency).isNotEqualTo(newTransactionDetail.getPenaltyChargesPortion(currency)))) {
+
+
+
+            /*List<LoanTransaction> referenceTransactions = transactionToAdjust..getLoanTransactions();
+            for (LoanTransaction refeLoanTransaction : referenceTransactions) {
+                refeLoanTransaction.reverse();
+            }*/
+            if (newTransactionDetail.isGreaterThanZero(loan.getPrincpal().getCurrency())) {
+                LoanTransaction accrualSuspenseTransaction = this.loanAccountDomainService.createAccrualSuspenseReverseTransaction(loan,
+                        newTransactionDetail);
+                if (accrualSuspenseTransaction != null) {
+                    loan.getLoanTransactions().add(accrualSuspenseTransaction);
+                    this.loanTransactionRepository.save(accrualSuspenseTransaction);
+                }
+            }
+
+        }
+
 
         /***
          * TODO Vishwas Batch save is giving me a
@@ -3030,4 +3057,83 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
 		}
 
 	}
+
+    @Transactional
+    @Override
+    public void updateNPA(final Long loanId, final boolean useJobStartTime,
+                          final DateTime jobStartedAt, final boolean isTxnDateCurDate) {
+        final Loan loan = this.loanAssembler.assembleFrom(loanId);
+        loan.updateNpaStatus(true);
+        List<LoanRepaymentScheduleInstallment> installments = loan.fetchRepaymentScheduleInstallments();
+        final MonetaryCurrency currency = loan.getCurrency();
+        LocalDate lastRepaymentDate = loan.getDisbursementDate();
+        final LocalDate currentDate = DateUtils.getLocalDateOfTenant();
+        for (LoanRepaymentScheduleInstallment installment : installments) {
+            if (installment.getDueDate().isAfter(currentDate)) {
+                installment.resetAccrualPortion();
+            } else if (!installment.isRecalculatedInterestComponent() && installment.getDueDate().isAfter(lastRepaymentDate)) {
+                lastRepaymentDate = installment.getDueDate();
+            }
+        }
+
+        final List<Long> existingTransactionIds = new ArrayList<>();
+        final List<Long> existingReversedTransactionIds = new ArrayList<>();
+        existingTransactionIds.addAll(loan.findExistingTransactionIds());
+        existingReversedTransactionIds.addAll(loan.findExistingReversedTransactionIds());
+
+        List<LoanTransaction> transactions = loan.getLoanTransactions();
+        Money receivableInterest = Money.zero(currency);
+        Money receivableFee = Money.zero(currency);
+        Money receivablePenalty = Money.zero(currency);
+        for (final LoanTransaction transaction : transactions) {
+            if (transaction.isNotReversed()) {
+                if (transaction.isAccrual()) {
+                    if (transaction.getTransactionDate().isAfter(lastRepaymentDate)) {
+                        transaction.reverse();
+                    } else {
+                        receivableInterest = receivableInterest.plus(transaction.getInterestPortion(currency));
+                        receivableFee = receivableFee.plus(transaction.getFeeChargesPortion(currency));
+                        receivablePenalty = receivablePenalty.plus(transaction.getPenaltyChargesPortion(currency));
+                    }
+                } else if (transaction.isRepayment() || transaction.isWaiver()) {
+                    receivableInterest = receivableInterest.minus(transaction.getInterestPortion(currency));
+                    receivableFee = receivableFee.minus(transaction.getFeeChargesPortion(currency));
+                    receivablePenalty = receivablePenalty.minus(transaction.getPenaltyChargesPortion(currency));
+                }
+            }
+        }
+
+        LoanTransaction transaction = null;
+        if (receivableInterest.isGreaterThanZero() || receivableFee.isGreaterThanZero() || receivablePenalty.isGreaterThanZero()) {
+            transaction = LoanTransaction.accrualSuspense(loan, loan.getOffice(),
+                    receivableInterest.plus(receivableFee).plus(receivablePenalty), receivableInterest, receivableFee, receivablePenalty);
+            Money[] receivables = loan.updateChargesPaidByFromAccruals(transaction);
+            transaction.resetDerivedComponents(true);
+            transaction.updateComponentsAndTotal(Money.zero(currency), receivableInterest, receivables[0], receivables[1]);
+            transactions.add(transaction);
+        }
+        if (transaction != null) {
+            this.loanTransactionRepository.save(transaction);
+        }
+        this.loanRepositoryWrapper.save(loan);
+
+        postJournalEntries(loan, existingTransactionIds, existingReversedTransactionIds, useJobStartTime, jobStartedAt, isTxnDateCurDate);
+
+    }
+
+    private void postJournalEntries(final Loan loan, final List<Long> existingTransactionIds,
+                                    final List<Long> existingReversedTransactionIds, final boolean useJobStartTime, final DateTime currentTime, final boolean isTxnDateCurDate) {
+
+        final MonetaryCurrency currency = loan.getCurrency();
+        final ApplicationCurrency applicationCurrency = this.applicationCurrencyRepository.findOneWithNotFoundDetection(currency);
+        boolean isAccountTransfer = false;
+        final Map<String, Object> accountingBridgeData = loan.deriveAccountingBridgeData(applicationCurrency.toData(),
+                existingTransactionIds, existingReversedTransactionIds, isAccountTransfer);
+        accountingBridgeData.put("useStartTime", useJobStartTime);
+        accountingBridgeData.put("isTxnDateCurDate", isTxnDateCurDate);
+        if (useJobStartTime) {
+            accountingBridgeData.put("startedAtDateTime", currentTime);
+        }
+        this.journalEntryWritePlatformService.createJournalEntriesForLoan(accountingBridgeData);
+    }
 }

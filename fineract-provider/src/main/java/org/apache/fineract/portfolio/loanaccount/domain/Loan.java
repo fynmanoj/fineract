@@ -133,9 +133,7 @@ import org.apache.fineract.portfolio.loanproduct.domain.RecalculationFrequencyTy
 import org.apache.fineract.portfolio.loanproduct.service.LoanEnumerations;
 import org.apache.fineract.portfolio.paymentdetail.domain.PaymentDetail;
 import org.apache.fineract.useradministration.domain.AppUser;
-import org.joda.time.Days;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalDateTime;
+import org.joda.time.*;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.springframework.stereotype.Component;
@@ -319,6 +317,9 @@ public class Loan extends AbstractPersistableCustom<Long> {
 
     @Embedded
     private LoanSummary summary;
+
+    @OneToOne(mappedBy = "loan", cascade = CascadeType.ALL, optional = true, orphanRemoval = true, fetch = FetchType.LAZY)
+    private LoanSummaryArrearsAging summaryArrearsAging;
 
     @Transient
     private boolean accountNumberRequiresAutoGeneration = false;
@@ -1280,6 +1281,7 @@ public class Loan extends AbstractPersistableCustom<Long> {
         if (isNotDisbursed()) {
             this.summary.zeroFields();
             this.totalOverpaid = null;
+            this.summaryArrearsAging = null;
         } else {
             final Money overpaidBy = calculateTotalOverpayment();
             this.totalOverpaid = overpaidBy.getAmountDefaultedToNullIfZero();
@@ -1290,6 +1292,28 @@ public class Loan extends AbstractPersistableCustom<Long> {
             final Money principal = this.loanRepaymentScheduleDetail.getPrincipal();
             this.summary.updateSummary(loanCurrency(), principal, getRepaymentScheduleInstallments(), this.loanSummaryWrapper,
                     isDisbursed(), this.charges);
+
+            if (this.summaryArrearsAging == null) {
+                this.summaryArrearsAging = new LoanSummaryArrearsAging(this);
+            }
+            Integer npaDays = loanProduct().getOverdueDaysForNPA();
+            if (this.summaryArrearsAging.isNotInArrears(loanCurrency())) {
+                //this.summaryArrearsAging = null;
+                    this.isNpa = false;
+
+            } else if (npaDays != null ) {
+                LocalDate npaDate = DateUtils.getLocalDateOfTenant().minusDays(npaDays);
+                final Period dpdPeriod =  new Period(this.summaryArrearsAging.fetchOverdueSinceDate(), DateUtils.getLocalDateOfTenant(), PeriodType.days());
+                Integer dpdCounter = dpdPeriod.getDays();
+                if (this.summaryArrearsAging.fetchOverdueSinceDate().isBefore(npaDate)) {
+                    // this should be done by the job
+                    //this.isNpa = true;
+                } else {
+                    this.isNpa = false;
+                }
+            }
+
+
             updateLoanOutstandingBalaces();
         }
     }
@@ -3259,7 +3283,7 @@ public class Loan extends AbstractPersistableCustom<Long> {
                 }
                 HashMap<String, Object> feeDetails = new HashMap<>();
                 determineFeeDetails(lastAccruedDate, closedLocalDate, feeDetails);
-                LoanTransaction finalAccrual = LoanTransaction.accrueTransaction(this, this.getOffice(), closedLocalDate, amountToPost,
+                LoanTransaction finalAccrual = LoanTransaction.accrual(this, this.getOffice(), closedLocalDate, amountToPost,
                         interestToPost, feeToPost, penaltyToPost, null);
                 updateLoanChargesPaidBy(finalAccrual, feeDetails, null);
                 addLoanTransaction(finalAccrual) ;
@@ -5234,13 +5258,13 @@ public class Loan extends AbstractPersistableCustom<Long> {
 
         if (isPeriodicAccrualAccountingEnabledOnLoanProduct()) {
             if (existingAccrualTransaction == null) {
-                LoanTransaction accrual = LoanTransaction.accrueTransaction(this, this.getOffice(), compoundingDetail.getEffectiveDate(),
+                LoanTransaction accrual = LoanTransaction.accrual(this, this.getOffice(), compoundingDetail.getEffectiveDate(),
                         compoundingDetail.getAmount(), interest, fee, penalties, currentUser);
                 updateLoanChargesPaidBy(accrual, feeDetails, null);
                 addLoanTransaction(accrual);
             } else if (existingAccrualTransaction.getAmount(getCurrency()).getAmount().compareTo(compoundingDetail.getAmount()) != 0) {
                 existingAccrualTransaction.reverse();
-                LoanTransaction accrual = LoanTransaction.accrueTransaction(this, this.getOffice(), compoundingDetail.getEffectiveDate(),
+                LoanTransaction accrual = LoanTransaction.accrual(this, this.getOffice(), compoundingDetail.getEffectiveDate(),
                         compoundingDetail.getAmount(), interest, fee, penalties, currentUser);
                 updateLoanChargesPaidBy(accrual, feeDetails, null);
                 addLoanTransaction(accrual);
@@ -6528,4 +6552,61 @@ public class Loan extends AbstractPersistableCustom<Long> {
     }
     
     public boolean isIndividualLoan(){return AccountType.fromInt(this.loanType).isIndividualAccount();}
+
+    public void updateNpaStatus(boolean isNpa) {
+        this.isNpa = isNpa;
+    }
+
+    public Money[] updateChargesPaidByFromAccruals(final LoanTransaction loanTransaction) {
+        Set<LoanChargePaidBy> chargesPaidBies = loanTransaction.getLoanChargesPaid();
+        List<LoanTransaction> loanTransactions = getLoanTransactions();
+        final MonetaryCurrency currency = getCurrency();
+        Money[] receivables = new Money[2];
+        Money feesPortion = Money.zero(currency);
+        Money penaltiesPortion = Money.zero(currency);
+        for (LoanTransaction accrualTransaction : loanTransactions) {
+            if (accrualTransaction.isAccrual()) {
+                Money[] receivableIncome = updateChargesPaidByFromTransaction(loanTransaction, chargesPaidBies, currency, accrualTransaction);
+                feesPortion = feesPortion.plus(receivableIncome[0]);
+                penaltiesPortion = penaltiesPortion.plus(receivableIncome[1]);
+            }
+        }
+        receivables[0] = feesPortion;
+        receivables[1] =  penaltiesPortion;
+        return receivables;
+    }
+
+    private Money[] updateChargesPaidByFromTransaction(final LoanTransaction loanTransaction, Set<LoanChargePaidBy> chargesPaidBies,
+                                                       final MonetaryCurrency currency, LoanTransaction accrualTransaction) {
+        Set<LoanChargePaidBy> chargePaidBies = accrualTransaction.getLoanChargesPaid();
+        Money feesPortion = Money.zero(currency);
+        Money penaltiesPortion = Money.zero(currency);
+        Money[] receivables = new Money[2];
+        for (LoanChargePaidBy chargePaidBy : chargePaidBies) {
+            Money outstanding = chargePaidBy.getLoanCharge().getAmountOutstanding(currency, chargePaidBy.getInstallmentNumber());
+            if (outstanding.isGreaterThanZero()) {
+                BigDecimal chargeAmount = outstanding.getAmount();
+                final BigDecimal incomeAmount = chargePaidBy.getLoanCharge().getIncomeAmount(currency, chargePaidBy.getInstallmentNumber());
+                if (outstanding.isGreaterThan(Money.of(currency,incomeAmount))) {
+                    chargeAmount = incomeAmount;
+                }
+                if (chargePaidBy.getLoanCharge().isPenaltyCharge()) {
+                    penaltiesPortion = penaltiesPortion.plus(chargeAmount);
+                } else {
+                    feesPortion = feesPortion.plus(chargeAmount);
+                }
+                final LoanChargePaidBy loanChargePaidBy = new LoanChargePaidBy(loanTransaction, chargePaidBy.getLoanCharge(), chargeAmount,
+                        chargePaidBy.getInstallmentNumber());
+                chargesPaidBies.add(loanChargePaidBy);
+            }
+        }
+        receivables[0] = feesPortion;
+        receivables[1] =  penaltiesPortion;
+        return receivables;
+    }
+
+    public List<LoanRepaymentScheduleInstallment> fetchRepaymentScheduleInstallments() {
+        return this.repaymentScheduleInstallments;
+    }
+
 }

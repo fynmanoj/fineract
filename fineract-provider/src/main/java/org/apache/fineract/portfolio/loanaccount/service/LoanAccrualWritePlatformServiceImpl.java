@@ -276,16 +276,36 @@ public class LoanAccrualWritePlatformServiceImpl implements LoanAccrualWritePlat
         @SuppressWarnings("deprecation")
         final Long transactonId = this.jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
+        Long suspenceTransactionnId = null;
+        if (scheduleAccrualData.isNpa()) {
+            this.jdbcTemplate.update(transactionSql, scheduleAccrualData.getLoanId(), scheduleAccrualData.getOfficeId(),
+                    LoanTransactionType.ACCRUAL_SUSPENSE.getValue(), accruedTill.toDate(), amount,
+                    interestportion, feeportion, penaltyportion, DateUtils.getDateOfTenant());
+            suspenceTransactionnId = this.jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+        }
+
         Map<LoanChargeData, BigDecimal> applicableCharges = scheduleAccrualData.getApplicableCharges();
         String chargespaidSql = "INSERT INTO m_loan_charge_paid_by (loan_transaction_id, loan_charge_id, amount,installment_number) VALUES (?,?,?,?)";
         for (Map.Entry<LoanChargeData, BigDecimal> entry : applicableCharges.entrySet()) {
             LoanChargeData chargeData = entry.getKey();
             this.jdbcTemplate.update(chargespaidSql, transactonId, chargeData.getId(), entry.getValue(),
                     scheduleAccrualData.getInstallmentNumber());
+            if (scheduleAccrualData.isNpa()) {
+                this.jdbcTemplate.update(chargespaidSql, suspenceTransactionnId, chargeData.getId(), entry.getValue(),
+                        scheduleAccrualData.getInstallmentNumber());
+            }
         }
-
+        final List<Map<String, Object>> listOfTransactionMap = new ArrayList<>();
         Map<String, Object> transactionMap = toMapData(transactonId, amount, interestportion, feeportion, penaltyportion,
-                scheduleAccrualData, accruedTill);
+                scheduleAccrualData, accruedTill, LoanTransactionType.ACCRUAL);
+        listOfTransactionMap.add(transactionMap);
+        if (scheduleAccrualData.isNpa()) {
+            Map<String, Object> transactionsuspenceMap = toMapData(suspenceTransactionnId, amount, interestportion, feeportion,
+                    penaltyportion, scheduleAccrualData, accruedTill, LoanTransactionType.ACCRUAL_SUSPENSE);
+            listOfTransactionMap.add(transactionsuspenceMap);
+
+        }
 
         String repaymetUpdatesql = "UPDATE m_loan_repayment_schedule SET accrual_interest_derived=?, accrual_fee_charges_derived=?, "
                 + "accrual_penalty_charges_derived=? WHERE  id=?";
@@ -294,12 +314,12 @@ public class LoanAccrualWritePlatformServiceImpl implements LoanAccrualWritePlat
 
         String updateLoan = "UPDATE m_loan  SET accrued_till=?  WHERE  id=?";
         this.jdbcTemplate.update(updateLoan, accruedTill.toDate(), scheduleAccrualData.getLoanId());
-        final Map<String, Object> accountingBridgeData = deriveAccountingBridgeData(scheduleAccrualData, transactionMap);
+        final Map<String, Object> accountingBridgeData = deriveAccountingBridgeData(scheduleAccrualData, listOfTransactionMap);
         this.journalEntryWritePlatformService.createJournalEntriesForLoan(accountingBridgeData);
     }
 
     public Map<String, Object> deriveAccountingBridgeData(final LoanScheduleAccrualData loanScheduleAccrualData,
-            final Map<String, Object> transactionMap) {
+                              final List<Map<String, Object>> listOfTransactionMap) {
 
         final Map<String, Object> accountingBridgeData = new LinkedHashMap<>();
         accountingBridgeData.put("loanId", loanScheduleAccrualData.getLoanId());
@@ -310,20 +330,16 @@ public class LoanAccrualWritePlatformServiceImpl implements LoanAccrualWritePlat
         accountingBridgeData.put("upfrontAccrualBasedAccountingEnabled", false);
         accountingBridgeData.put("periodicAccrualBasedAccountingEnabled", true);
         accountingBridgeData.put("isAccountTransfer", false);
-
-        final List<Map<String, Object>> newLoanTransactions = new ArrayList<>();
-        newLoanTransactions.add(transactionMap);
-
-        accountingBridgeData.put("newLoanTransactions", newLoanTransactions);
+        accountingBridgeData.put("newLoanTransactions", listOfTransactionMap);
         return accountingBridgeData;
     }
 
     public Map<String, Object> toMapData(final Long id, final BigDecimal amount, final BigDecimal interestportion,
             final BigDecimal feeportion, final BigDecimal penaltyportion, final LoanScheduleAccrualData loanScheduleAccrualData,
-            final LocalDate accruredTill) {
+            final LocalDate accruredTill, LoanTransactionType loanTransactionType) {
         final Map<String, Object> thisTransactionData = new LinkedHashMap<>();
 
-        final LoanTransactionEnumData transactionType = LoanEnumerations.transactionType(LoanTransactionType.ACCRUAL);
+        final LoanTransactionEnumData transactionType = LoanEnumerations.transactionType(loanTransactionType);
 
         thisTransactionData.put("id", id);
         thisTransactionData.put("officeId", loanScheduleAccrualData.getOfficeId());

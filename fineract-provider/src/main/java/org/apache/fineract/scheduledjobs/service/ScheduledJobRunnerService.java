@@ -32,7 +32,7 @@ public interface ScheduledJobRunnerService {
 
     void applyDueChargesForSavings() throws JobExecutionException;
 
-    void updateNPA();
+    void updateNPA() throws JobExecutionException;
 
     void updateMaturityDetailsOfDepositAccounts();
 

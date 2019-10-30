@@ -300,5 +300,7 @@ public class LoanInstallmentCharge extends AbstractPersistableCustom<Long> imple
 		return this.installment;
 	}
 
-    
+    public Money getAmountOutstanding(final MonetaryCurrency currency) {
+        return Money.of(currency, this.amountOutstanding);
+    }
 }

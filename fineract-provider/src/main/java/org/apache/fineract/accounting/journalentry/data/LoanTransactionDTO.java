@@ -42,6 +42,7 @@ public class LoanTransactionDTO {
     private final BigDecimal penalties;
     private final BigDecimal overPayment;
 
+    private final String tranGroupRef;
     /*** Boolean values determines if the transaction is reversed ***/
     private final boolean reversed;
 
@@ -56,7 +57,7 @@ public class LoanTransactionDTO {
     public LoanTransactionDTO(final Long officeId, final Long paymentTypeId, final String transactionId, final Date transactionDate,
             final LoanTransactionEnumData transactionType, final BigDecimal amount, final BigDecimal principal, final BigDecimal interest,
             final BigDecimal fees, final BigDecimal penalties, final BigDecimal overPayment, final boolean reversed,
-            final List<ChargePaymentDTO> feePayments, final List<ChargePaymentDTO> penaltyPayments, boolean isAccountTransfer) {
+            final List<ChargePaymentDTO> feePayments, final List<ChargePaymentDTO> penaltyPayments, boolean isAccountTransfer, String tranGroupRef) {
         this.paymentTypeId = paymentTypeId;
         this.transactionId = transactionId;
         this.transactionDate = transactionDate;
@@ -72,6 +73,10 @@ public class LoanTransactionDTO {
         this.overPayment = overPayment;
         this.officeId = officeId;
         this.isAccountTransfer = isAccountTransfer;
+        if(tranGroupRef == null)
+            this.tranGroupRef = "UND";
+        else
+            this.tranGroupRef = tranGroupRef;
     }
 
     public Long getOfficeId() {
@@ -141,4 +146,8 @@ public class LoanTransactionDTO {
         public boolean isLoanToLoanTransfer(){
             return this.isLoanToLoanTransfer;
         }
+
+    public String getTranGroupRef() {
+        return tranGroupRef;
+    }
 }

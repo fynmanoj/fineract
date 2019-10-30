@@ -111,4 +111,17 @@ public class DateUtils {
     public static boolean isDateInTheFuture(final LocalDate localDate) {
         return localDate.isAfter(getLocalDateOfTenant());
     }
+
+    public static DateTime getCurrentDateTimeOfTenant() {
+
+        DateTime currentDate = DateTime.now();
+        final FineractPlatformTenant tenant = ThreadLocalContextUtil.getTenant();
+        if (tenant != null) {
+            final DateTimeZone zone = DateTimeZone.forID(tenant.getTimezoneId());
+            if (zone != null) {
+                currentDate = new DateTime(zone);
+            }
+        }
+        return currentDate;
+    }
 }

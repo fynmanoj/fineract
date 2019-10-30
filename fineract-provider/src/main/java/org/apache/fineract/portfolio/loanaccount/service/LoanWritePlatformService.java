@@ -33,7 +33,9 @@ import org.apache.fineract.portfolio.collectionsheet.command.CollectionSheetBulk
 import org.apache.fineract.portfolio.loanaccount.domain.Loan;
 import org.apache.fineract.portfolio.loanaccount.domain.LoanTransaction;
 import org.apache.fineract.portfolio.loanaccount.loanschedule.data.OverdueLoanScheduleData;
+import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface LoanWritePlatformService {
 
@@ -109,4 +111,7 @@ public interface LoanWritePlatformService {
 
     CommandProcessingResult forecloseLoan(final Long loanId, JsonCommand command);
 
+    @Transactional
+    void updateNPA(Long loanId, boolean useJobStartTime,
+                   DateTime jobStartedAt, boolean isTxnDateCurDate);
 }

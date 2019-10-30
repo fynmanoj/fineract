@@ -401,6 +401,14 @@ public class LoanEnumerations {
                 optionData = new LoanTransactionEnumData(LoanTransactionType.INCOME_POSTING.getValue().longValue(),
                         LoanTransactionType.INCOME_POSTING.getCode(), "Income Posting");
             break;
+            case ACCRUAL_SUSPENSE:
+                optionData = new LoanTransactionEnumData(LoanTransactionType.ACCRUAL_SUSPENSE.getValue().longValue(),
+                        LoanTransactionType.ACCRUAL_SUSPENSE.getCode(), "Accrual Suspense");
+                break;
+            case ACCRUAL_SUSPENSE_REVERSE:
+                optionData = new LoanTransactionEnumData(LoanTransactionType.ACCRUAL_SUSPENSE_REVERSE.getValue().longValue(),
+                        LoanTransactionType.ACCRUAL_SUSPENSE_REVERSE.getCode(), "Accrual Suspense Reverse");
+                break;
             default:
             break;
         }

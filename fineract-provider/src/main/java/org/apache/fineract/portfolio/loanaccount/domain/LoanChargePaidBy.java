@@ -28,6 +28,8 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 import org.apache.fineract.infrastructure.core.domain.AbstractPersistableCustom;
+import org.apache.fineract.organisation.monetary.domain.MonetaryCurrency;
+import org.apache.fineract.organisation.monetary.domain.Money;
 
 @Entity
 @Table(name = "m_loan_charge_paid_by")
@@ -77,6 +79,10 @@ public class LoanChargePaidBy extends AbstractPersistableCustom<Long> {
 
     public BigDecimal getAmount() {
         return this.amount;
+    }
+
+    public Money getAmount(MonetaryCurrency currency) {
+        return  Money.of(currency, this.amount);
     }
 
     public void setAmount(final BigDecimal amount) {

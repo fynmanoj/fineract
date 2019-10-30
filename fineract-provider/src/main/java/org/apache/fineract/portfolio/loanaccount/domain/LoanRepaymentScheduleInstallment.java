@@ -806,4 +806,10 @@ public final class LoanRepaymentScheduleInstallment extends AbstractAuditableCus
         return getPenaltyChargesPaid(currency).plus(getFeeChargesPaid(currency)).plus(getInterestPaid(currency))
                 .plus(getPrincipalCompleted(currency));
     }
+
+    public void resetAccrualPortion() {
+        this.interestAccrued = null;
+        this.feeAccrued = null;
+        this.penaltyAccrued = null;
+    }
 }

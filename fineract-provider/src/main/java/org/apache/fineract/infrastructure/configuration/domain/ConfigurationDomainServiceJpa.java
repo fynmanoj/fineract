@@ -324,6 +324,15 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
         return value;
     }
 
+    @Override
+    public boolean isWholeAccruedToSuspenseEnabled() {
+        final String propertyName  = "mark-whole-income-to-suspense-on-npa";
+        final GlobalConfigurationPropertyData property = getGlobalConfigurationPropertyData(propertyName);
+        if(property != null)
+            return property.isEnabled();
+        return false;
+    }
+
     private GlobalConfigurationPropertyData getGlobalConfigurationPropertyData(final String propertyName) {
         String identifier = ThreadLocalContextUtil.getTenant().getTenantIdentifier();
         String key = identifier + "_" + propertyName;

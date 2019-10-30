@@ -18,20 +18,9 @@
  */
 package org.apache.fineract.scheduledjobs.service;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.text.SimpleDateFormat;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.fineract.accounting.glaccount.domain.TrialBalance;
 import org.apache.fineract.accounting.glaccount.domain.TrialBalanceRepositoryWrapper;
-import org.apache.fineract.portfolio.loanaccount.api.LoanApiConstants;
-import org.joda.time.LocalDate;
-import org.joda.time.DateTime;
-
+import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
 import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
@@ -40,6 +29,8 @@ import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.infrastructure.jobs.annotation.CronTarget;
 import org.apache.fineract.infrastructure.jobs.exception.JobExecutionException;
 import org.apache.fineract.infrastructure.jobs.service.JobName;
+import org.apache.fineract.portfolio.loanaccount.service.LoanReadPlatformService;
+import org.apache.fineract.portfolio.loanaccount.service.LoanWritePlatformService;
 import org.apache.fineract.portfolio.savings.DepositAccountType;
 import org.apache.fineract.portfolio.savings.DepositAccountUtils;
 import org.apache.fineract.portfolio.savings.data.DepositAccountData;
@@ -50,6 +41,7 @@ import org.apache.fineract.portfolio.savings.service.SavingsAccountChargeReadPla
 import org.apache.fineract.portfolio.savings.service.SavingsAccountWritePlatformService;
 import org.apache.fineract.portfolio.shareaccounts.service.ShareAccountDividendReadPlatformService;
 import org.apache.fineract.portfolio.shareaccounts.service.ShareAccountSchedularService;
+import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.LocalDate;
 import org.joda.time.format.DateTimeFormat;
@@ -61,6 +53,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 @Service(value = "scheduledJobRunnerService")
 public class ScheduledJobRunnerServiceImpl implements ScheduledJobRunnerService {
@@ -77,6 +77,9 @@ public class ScheduledJobRunnerServiceImpl implements ScheduledJobRunnerService 
     private final ShareAccountDividendReadPlatformService shareAccountDividendReadPlatformService;
     private final ShareAccountSchedularService shareAccountSchedularService;
     private final TrialBalanceRepositoryWrapper trialBalanceRepositoryWrapper;
+    private final LoanReadPlatformService  loanReadPlatformService;
+    private final LoanWritePlatformService loanWritePlatformService;
+    private final ConfigurationDomainService configurationDomainService;
 
     @Autowired
     public ScheduledJobRunnerServiceImpl(final RoutingDataSourceServiceFactory dataSourceServiceFactory,
@@ -86,6 +89,10 @@ public class ScheduledJobRunnerServiceImpl implements ScheduledJobRunnerService 
             final DepositAccountWritePlatformService depositAccountWritePlatformService,
             final ShareAccountDividendReadPlatformService shareAccountDividendReadPlatformService,
             final ShareAccountSchedularService shareAccountSchedularService, final TrialBalanceRepositoryWrapper trialBalanceRepositoryWrapper) {
+            final ShareAccountSchedularService shareAccountSchedularService,
+            final LoanReadPlatformService loanReadPlatformService,
+            final LoanWritePlatformService loanWritePlatformService,
+            final ConfigurationDomainService configurationDomainService) {
         this.dataSourceServiceFactory = dataSourceServiceFactory;
         this.savingsAccountWritePlatformService = savingsAccountWritePlatformService;
         this.savingsAccountChargeReadPlatformService = savingsAccountChargeReadPlatformService;
@@ -94,6 +101,9 @@ public class ScheduledJobRunnerServiceImpl implements ScheduledJobRunnerService 
         this.shareAccountDividendReadPlatformService = shareAccountDividendReadPlatformService;
         this.shareAccountSchedularService = shareAccountSchedularService;
         this.trialBalanceRepositoryWrapper=trialBalanceRepositoryWrapper;
+        this.loanReadPlatformService = loanReadPlatformService;
+        this.loanWritePlatformService = loanWritePlatformService;
+        this.configurationDomainService = configurationDomainService;
     }
 
     @Transactional
@@ -269,10 +279,8 @@ public class ScheduledJobRunnerServiceImpl implements ScheduledJobRunnerService 
         if (errorMsg.length() > 0) { throw new JobExecutionException(errorMsg.toString()); }
     }
 
-    @Transactional
-    @Override
-    @CronTarget(jobName = JobName.UPDATE_NPA)
-    public void updateNPA() {
+
+    private void markAccountsAsNPA() {
 
         final JdbcTemplate jdbcTemplate = new JdbcTemplate(this.dataSourceServiceFactory.determineDataSourceService().retrieveDataSource());
 
@@ -302,6 +310,35 @@ public class ScheduledJobRunnerServiceImpl implements ScheduledJobRunnerService 
         final int result = jdbcTemplate.update(updateSqlBuilder.toString());
 
         logger.info(ThreadLocalContextUtil.getTenant().getName() + ": Results affected by update: " + result);
+    }
+
+    @Override
+    @CronTarget(jobName = JobName.UPDATE_NPA)
+    public void updateNPA() throws JobExecutionException {
+        if(!this.configurationDomainService.isWholeAccruedToSuspenseEnabled()){
+            markAccountsAsNPA();
+            return;
+        }
+        final Collection<Long> loanIds = this.loanReadPlatformService.retriveNewNPALoans();
+        StringBuilder sb = new StringBuilder();
+        final boolean useJobStartTime = false;
+        final boolean isTxnDateCurDate = false;
+        final DateTime currentTime = DateUtils.getCurrentDateTimeOfTenant();
+        for (Long loanId : loanIds) {
+            try {
+                this.loanWritePlatformService.updateNPA(loanId, useJobStartTime, currentTime, isTxnDateCurDate);
+            } catch (Exception e) {
+
+                Throwable realCause = e;
+                if (e.getCause() != null) {
+                    realCause = e.getCause();
+                }
+                sb.append("failed to update npa status for loan with id " + loanId + " with message " + realCause.getMessage());
+            }
+        }
+
+        if (sb.length() > 0) { throw new JobExecutionException(sb.toString()); }
+
     }
 
     @Override

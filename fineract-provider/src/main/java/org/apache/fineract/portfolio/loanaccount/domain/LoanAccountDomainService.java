@@ -75,4 +75,7 @@ public interface LoanAccountDomainService {
     void disableStandingInstructionsLinkedToClosedLoan(Loan loan);
 
     void recalculateAccruals(Loan loan, boolean isInterestCalcualtionHappened);
+
+    LoanTransaction createAccrualSuspenseReverseTransaction(Loan loan,
+                                                            LoanTransaction transaction);
 }

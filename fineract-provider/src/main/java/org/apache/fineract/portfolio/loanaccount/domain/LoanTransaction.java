@@ -79,6 +79,9 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
     @Column(name = "transaction_type_enum", nullable = false)
     private Integer typeOf;
 
+    //@Column(name = "sub_transaction_type_enum", nullable = true)
+    //private final Integer subTxnType;
+
     @Temporal(TemporalType.DATE)
     @Column(name = "transaction_date", nullable = false)
     private Date dateOf;
@@ -216,19 +219,61 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
             final Money feeCharges, final Money penaltyCharges, final LocalDate transactionDate) {
         final AppUser appUser = null;
         return accrueTransaction(loan, office, transactionDate, amount.getAmount(), interest.getAmount(), feeCharges.getAmount(),
-                penaltyCharges.getAmount(), appUser);
+                penaltyCharges.getAmount(), appUser, LoanTransactionType.ACCRUAL);
     }
+
+    public static LoanTransaction accrual(final Loan loan, final Office office, final Money amount, final Money interest,
+                                          final Money feeCharges, final Money penaltyCharges, final LocalDate transactionDate,
+                                          final AppUser appUser ) {
+        return accrueTransaction(loan, office, transactionDate, amount.getAmount(), interest.getAmount(), feeCharges.getAmount(),
+                penaltyCharges.getAmount(), appUser, LoanTransactionType.ACCRUAL);
+    }
+
+    public static LoanTransaction accrual(final Loan loan, final Office office , final LocalDate transactionDate, final BigDecimal amount,
+                                          final BigDecimal interest, final BigDecimal feeCharges, final BigDecimal penaltyCharges,
+                                          final AppUser appUser ) {
+        return accrueTransaction(loan, office, transactionDate, amount, interest, feeCharges,
+                penaltyCharges, appUser, LoanTransactionType.ACCRUAL);
+    }
+
+    public static LoanTransaction accrualSuspense(final Loan loan, final Office office, final Money amount, final Money interest,
+                                                  final Money feeCharges, final Money penaltyCharges) {
+        final LoanTransactionType transactionType = LoanTransactionType.ACCRUAL_SUSPENSE;
+        final LocalDate transactionDate = DateUtils.getLocalDateOfTenant();
+        final AppUser appUser = null;
+        return accrueTransaction(loan, office, transactionDate, amount.getAmount(), interest.getAmount(), feeCharges.getAmount(),
+                penaltyCharges.getAmount(), appUser, transactionType);
+    }
+
+    public static LoanTransaction accrualSuspense(final Loan loan, final Office office, final Money amount, final Money interest,
+                                                  final Money feeCharges, final Money penaltyCharges,
+                                                  final LocalDate transactionDate) {
+        final LoanTransactionType transactionType = LoanTransactionType.ACCRUAL_SUSPENSE;
+        final AppUser appUser = null;
+        return accrueTransaction(loan, office, transactionDate, amount.getAmount(), interest.getAmount(), feeCharges.getAmount(),
+                penaltyCharges.getAmount(), appUser, transactionType);
+    }
+
+    public static LoanTransaction accrualSuspenseReverse(final Loan loan, final Office office, final Money amount, final Money interest,
+                                                  final Money feeCharges, final Money penaltyCharges,
+                                                  final LocalDate transactionDate) {
+        final LoanTransactionType transactionType = LoanTransactionType.ACCRUAL_SUSPENSE_REVERSE;
+        final AppUser appUser = null;
+        return accrueTransaction(loan, office, transactionDate, amount.getAmount(), interest.getAmount(), feeCharges.getAmount(),
+                penaltyCharges.getAmount(), appUser, transactionType);
+    }
+
 
     public static LoanTransaction accrueTransaction(final Loan loan, final Office office, final LocalDate dateOf, final BigDecimal amount,
             final BigDecimal interestPortion, final BigDecimal feeChargesPortion, final BigDecimal penaltyChargesPortion,
-            final AppUser appUser) {
+            final AppUser appUser, LoanTransactionType loanTransactionType) {
         BigDecimal principalPortion = null;
         BigDecimal overPaymentPortion = null;
         boolean reversed = false;
         PaymentDetail paymentDetail = null;
         String externalId = null;
         LocalDateTime createdDate = DateUtils.getLocalDateTimeOfTenant();
-        return new LoanTransaction(loan, office, LoanTransactionType.ACCRUAL.getValue(), dateOf.toDate(), amount, principalPortion,
+        return new LoanTransaction(loan, office, loanTransactionType.getValue(), dateOf.toDate(), amount, principalPortion,
                 interestPortion, feeChargesPortion, penaltyChargesPortion, overPaymentPortion, reversed, paymentDetail, externalId,
                 createdDate, appUser);
     }
@@ -374,6 +419,18 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
         this.penaltyChargesPortion = null;
         this.overPaymentPortion = null;
         this.outstandingLoanBalance = null;
+    }
+
+    public void resetDerivedComponents(boolean resetUnrecignizedPortion) {
+        this.principalPortion = null;
+        this.interestPortion = null;
+        this.feeChargesPortion = null;
+        this.penaltyChargesPortion = null;
+        this.overPaymentPortion = null;
+        this.outstandingLoanBalance = null;
+        if(resetUnrecignizedPortion)
+            this.unrecognizedIncomePortion = null;
+
     }
 
     public void updateLoan(final Loan loan) {
@@ -677,6 +734,14 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
         return LoanTransactionType.ACCRUAL.equals(getTypeOf()) && isNotReversed();
     }
 
+    public boolean isAccrualSuspenseReverse() {
+        return getTypeOf().isAccrualSuspenseReverse() && isNotReversed();
+    }
+
+    public boolean isAccrualSuspense() {
+        return getTypeOf().isAccrualSuspense() && isNotReversed();
+    }
+
     public boolean isNonMonetaryTransaction() {
         return isNotReversed()
                 && (LoanTransactionType.CONTRA.equals(getTypeOf()) || LoanTransactionType.MARKED_FOR_RESCHEDULING.equals(getTypeOf())
@@ -711,7 +776,7 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
         this.manuallyAdjustedOrReversed = true;
     }
 
-    private LocalDate getCreatedDate() {
+    public LocalDate getCreatedDate() {
         return new LocalDate(this.createdDate);
     }
 

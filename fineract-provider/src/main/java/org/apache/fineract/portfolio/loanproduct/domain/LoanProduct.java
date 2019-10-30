@@ -1382,4 +1382,7 @@ public class LoanProduct extends AbstractPersistableCustom<Long> {
         this.isEqualAmortization = isEqualAmortization;
     }
 
+    public Integer getOverdueDaysForNPA() {
+        return overdueDaysForNPA;
+    }
 }

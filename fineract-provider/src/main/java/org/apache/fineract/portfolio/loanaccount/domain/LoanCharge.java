@@ -673,6 +673,12 @@ public class LoanCharge extends AbstractPersistableCustom<Long> {
         return Money.of(currency, this.amountOutstanding);
     }
 
+    public Money getAmountOutstanding(final MonetaryCurrency currency, final Integer installmentNumber) {
+        if (isInstalmentFee() && installmentNumber != null) { return getInstallmentLoanCharge(installmentNumber).getAmountOutstanding(
+                currency); }
+        return Money.of(currency, this.amountOutstanding);
+    }
+
     public boolean hasNotLoanIdentifiedBy(final Long loanId) {
         return !hasLoanIdentifiedBy(loanId);
     }
@@ -1039,4 +1045,14 @@ public class LoanCharge extends AbstractPersistableCustom<Long> {
     public boolean isDueDateCharge() {
         return this.dueDate != null;
     }
+
+    public BigDecimal getIncomeAmount(final MonetaryCurrency currency, final Integer installmentNumber) {
+        if (isInstalmentFee() && installmentNumber != null) {
+            return getInstallmentLoanCharge(installmentNumber).getAmountOutstanding(
+                currency).getAmount();
+        }
+        return this.amount;
+    }
+
+
 }
