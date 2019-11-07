@@ -3626,6 +3626,10 @@ public class Loan extends AbstractPersistableCustom<Long> {
             }
 
             addLoanTransaction(loanTransaction) ;
+            LoanTransaction accrualWriteoff = accrualUpdateOnWriteOff();
+            if (accrualWriteoff != null) {
+                changedTransactionDetail.getNewTransactionMappings().put(-1L, accrualWriteoff);
+            }
             loanRepaymentScheduleTransactionProcessor.handleWriteOff(loanTransaction, loanCurrency(), getRepaymentScheduleInstallments());
 
             updateLoanSummaryDerivedFields();
@@ -3726,6 +3730,7 @@ public class Loan extends AbstractPersistableCustom<Long> {
                 }
 
                 addLoanTransaction(loanTransaction) ;
+                accrualUpdateOnWriteOff();
                 loanRepaymentScheduleTransactionProcessor.handleWriteOff(loanTransaction, loanCurrency(),
                         getRepaymentScheduleInstallments());
 
@@ -6323,6 +6328,7 @@ public class Loan extends AbstractPersistableCustom<Long> {
         }
     }
 
+    //TODO: Manoj Handle waiver in foreclosure
     public ChangedTransactionDetail handleForeClosureTransactions(final LoanTransaction repaymentTransaction,
             final LoanLifecycleStateMachine loanLifecycleStateMachine, final ScheduleGeneratorDTO scheduleGeneratorDTO,
             final AppUser appUser) {
@@ -6608,5 +6614,60 @@ public class Loan extends AbstractPersistableCustom<Long> {
     public List<LoanRepaymentScheduleInstallment> fetchRepaymentScheduleInstallments() {
         return this.repaymentScheduleInstallments;
     }
+
+    private LoanTransaction accrualUpdateOnWriteOff() {
+        if (!isNpa()) { return null; }
+        MonetaryCurrency currency = getCurrency();
+        Money totalpendingInterestAccrual = Money.zero(currency);
+        Money totalpendingFeeAccrual = Money.zero(currency);
+        Money totalpendingPenaltyAccrual = Money.zero(currency);
+        for (LoanTransaction loanTransaction : getLoanTransactions()) {
+            if (loanTransaction.isNotReversed()) {
+                if (loanTransaction.isAccrualSuspense()) {
+                    totalpendingInterestAccrual = totalpendingInterestAccrual.plus(loanTransaction.getInterestPortion(currency));
+                    totalpendingFeeAccrual = totalpendingFeeAccrual.plus(loanTransaction.getFeeChargesPortion(currency));
+                    totalpendingPenaltyAccrual = totalpendingPenaltyAccrual.plus(loanTransaction.getPenaltyChargesPortion(currency));
+                } else if (loanTransaction.isAccrualWrittenOff() || loanTransaction.isAccrualSuspenseReverse()) {
+                    totalpendingInterestAccrual = totalpendingInterestAccrual.minus(loanTransaction.getInterestPortion(currency));
+                    totalpendingFeeAccrual = totalpendingFeeAccrual.minus(loanTransaction.getFeeChargesPortion(currency));
+                    totalpendingPenaltyAccrual = totalpendingPenaltyAccrual.minus(loanTransaction.getPenaltyChargesPortion(currency));
+                }
+            }
+        }
+
+        LoanTransaction transaction = null;
+        if (totalpendingPenaltyAccrual.isLessThanZero()) {
+            totalpendingPenaltyAccrual = totalpendingPenaltyAccrual.zero();
+        }
+        if (totalpendingFeeAccrual.isLessThanZero()) {
+            totalpendingFeeAccrual = totalpendingFeeAccrual.zero();
+        }
+        if (totalpendingInterestAccrual.plus(totalpendingFeeAccrual).plus(totalpendingPenaltyAccrual).isGreaterThanZero()) {
+            transaction = LoanTransaction.accrualWriteOff(this, getOffice(),
+                    totalpendingInterestAccrual.plus(totalpendingFeeAccrual).plus(totalpendingPenaltyAccrual), totalpendingInterestAccrual,
+                    totalpendingFeeAccrual, totalpendingPenaltyAccrual);
+            updateChargesPaidByFromAccrualsSuspense(transaction);
+            this.loanTransactions.add(transaction);
+        }
+        return transaction;
+    }
+
+    public Money[] updateChargesPaidByFromAccrualsSuspense(final LoanTransaction loanTransaction) {
+        Set<LoanChargePaidBy> chargesPaidBies = loanTransaction.getLoanChargesPaid();
+        List<LoanTransaction> loanTransactions = getLoanTransactions();
+        final MonetaryCurrency currency = getCurrency();
+        Money[] receivables = new Money[2];
+        Money feesPortion = Money.zero(currency);
+        Money penaltiesPortion = Money.zero(currency);
+        for (LoanTransaction accrualTransaction : loanTransactions) {
+            if (accrualTransaction.isAccrualSuspense()) {
+                Money[] receivableIncome = updateChargesPaidByFromTransaction(loanTransaction, chargesPaidBies, currency, accrualTransaction);
+                feesPortion = feesPortion.plus(receivableIncome[0]);
+                penaltiesPortion = penaltiesPortion.plus(receivableIncome[1]);
+            }
+        }
+        return receivables;
+    }
+
 
 }

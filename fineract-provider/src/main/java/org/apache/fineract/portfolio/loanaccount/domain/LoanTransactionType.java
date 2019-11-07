@@ -55,7 +55,8 @@ public enum LoanTransactionType {
     INCOME_POSTING(19,"loanTransactionType.incomePosting"),
     /* custom type starts at 51 to accommodate Fineract future values */
     ACCRUAL_SUSPENSE(51, "loanTransactionType.accrualSuspense"),//
-    ACCRUAL_SUSPENSE_REVERSE(52, "loanTransactionType.accrualSuspenseReverse" );
+    ACCRUAL_SUSPENSE_REVERSE(52, "loanTransactionType.accrualSuspenseReverse" ),
+    ACCRUAL_WRITEOFF(53, "loanTransactionType.accrualWriteOff");
 
     private final Integer value;
     private final String code;
@@ -139,6 +140,9 @@ public enum LoanTransactionType {
             case 52:
                 loanTransactionType = LoanTransactionType.ACCRUAL_SUSPENSE_REVERSE;
                 break;
+            case 53:
+                loanTransactionType = LoanTransactionType.ACCRUAL_WRITEOFF;
+                break;
             default:
                 loanTransactionType = LoanTransactionType.INVALID;
             break;
@@ -195,5 +199,8 @@ public enum LoanTransactionType {
 
     public boolean isAccrualSuspenseReverse() {
         return this.value.equals(LoanTransactionType.ACCRUAL_SUSPENSE_REVERSE.getValue());
+    }
+    public boolean isAccrualWrittenOff() {
+        return this.value.equals(LoanTransactionType.ACCRUAL_WRITEOFF.getValue());
     }
 }

@@ -284,4 +284,11 @@ public final class Report extends AbstractPersistableCustom<Long> {
 		return this.reportParameterUsages;
 	}
 
+	public void enableReport(){
+        this.useReport = true;
+    }
+    public void disableReport(){
+        this.useReport = false;
+    }
+
 }

@@ -263,6 +263,13 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
                 penaltyCharges.getAmount(), appUser, transactionType);
     }
 
+    public static LoanTransaction accrualWriteOff(final Loan loan, final Office office, final Money amount, final Money interest,
+                                                  final Money feeCharges, final Money penaltyCharges) {
+        final LoanTransactionType transactionType = LoanTransactionType.ACCRUAL_WRITEOFF;
+        final LocalDate transactionDate = DateUtils.getLocalDateOfTenant();
+        return accrueTransaction(loan, office, transactionDate, amount.getAmount(), interest.getAmount(), feeCharges.getAmount(),
+                penaltyCharges.getAmount(), null, transactionType);
+    }
 
     public static LoanTransaction accrueTransaction(final Loan loan, final Office office, final LocalDate dateOf, final BigDecimal amount,
             final BigDecimal interestPortion, final BigDecimal feeChargesPortion, final BigDecimal penaltyChargesPortion,
@@ -368,7 +375,7 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
     public static LoanTransaction waiveLoanCharge(final Loan loan, final Office office, final Money waived, final LocalDate waiveDate,
             final Money feeChargesWaived, final Money penaltyChargesWaived, final Money unrecognizedCharge,
             final LocalDateTime createdDate, final AppUser appUser) {
-        final LoanTransaction waiver = new LoanTransaction(loan, office, LoanTransactionType.WAIVE_CHARGES, waived.getAmount(), waiveDate,
+            final LoanTransaction waiver = new LoanTransaction(loan, office, LoanTransactionType.WAIVE_CHARGES, waived.getAmount(), waiveDate,
                 null, createdDate, appUser);
         waiver.updateChargesComponents(feeChargesWaived, penaltyChargesWaived, unrecognizedCharge);
 
@@ -860,5 +867,9 @@ public class LoanTransaction extends AbstractPersistableCustom<Long> {
         return this.isNotReversed()
                 && !(this.isDisbursement() || this.isAccrual() || this.isRepaymentAtDisbursement() || this.isNonMonetaryTransaction() || this
                         .isIncomePosting());
+    }
+
+    public boolean isAccrualWrittenOff() {
+        return getTypeOf().isAccrualWrittenOff() && isNotReversed();
     }
 }

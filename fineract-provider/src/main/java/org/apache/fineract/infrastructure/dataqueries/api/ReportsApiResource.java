@@ -23,14 +23,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
@@ -150,10 +143,26 @@ public class ReportsApiResource {
     @Consumes({ MediaType.APPLICATION_JSON })
     @Produces({ MediaType.APPLICATION_JSON })
     @ApiOperation(value = "Update a Report", notes = "Only the useReport value can be updated for core reports.")
-    @ApiImplicitParams({@ApiImplicitParam(value = "body", required = true, paramType = "body", dataType = "body", format = "body", dataTypeClass = ReportsApiResourceSwagger.PutReportRequest.class )})
+    @ApiImplicitParams({@ApiImplicitParam(value = "body", required = false, paramType = "body", dataType = "body", format = "body", dataTypeClass = ReportsApiResourceSwagger.PutReportRequest.class )})
     @ApiResponses({@ApiResponse(code = 200, message = "", response = ReportsApiResourceSwagger.PutReportResponse.class)})
-    public String updateReport(@PathParam("id") @ApiParam(value = "id") final Long id, @ApiParam(hidden = true) final String apiRequestBodyAsJson) {
+    public String updateReport(@PathParam("id") @ApiParam(value = "id") final Long id, @ApiParam(hidden = true) final String apiRequestBodyAsJson,
+                               @QueryParam("command") String command) {
 
+        if("enable".equals(command)){
+            final CommandWrapper commandRequest = new CommandWrapperBuilder().enableReport(id).build();
+
+            final CommandProcessingResult result = this.commandsSourceWritePlatformService.logCommandSource(commandRequest);
+
+            return this.toApiJsonSerializer.serialize(result);
+
+        }else if("disable".equals(command)){
+
+            final CommandWrapper commandRequest = new CommandWrapperBuilder().disableReport(id).build();
+
+            final CommandProcessingResult result = this.commandsSourceWritePlatformService.logCommandSource(commandRequest);
+
+            return this.toApiJsonSerializer.serialize(result);
+        }
         final CommandWrapper commandRequest = new CommandWrapperBuilder().updateReport(id).withJson(apiRequestBodyAsJson).build();
 
         final CommandProcessingResult result = this.commandsSourceWritePlatformService.logCommandSource(commandRequest);

@@ -20,6 +20,7 @@ package org.apache.fineract.infrastructure.dataqueries.service;
 
 import org.apache.fineract.infrastructure.core.api.JsonCommand;
 import org.apache.fineract.infrastructure.core.data.CommandProcessingResult;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface ReportWritePlatformService {
 
@@ -28,4 +29,10 @@ public interface ReportWritePlatformService {
     CommandProcessingResult updateReport(Long reportId, JsonCommand command);
 
     CommandProcessingResult deleteReport(Long reportId);
+
+    @Transactional
+    CommandProcessingResult enableReport(Long reportId);
+
+    @Transactional
+    CommandProcessingResult disableReport(Long reportId);
 }

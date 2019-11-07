@@ -18,10 +18,14 @@
  */
 package org.apache.fineract.infrastructure.security.data;
 
-import java.util.Collection;
-
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
+import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.useradministration.data.RoleData;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Collection;
 
 /**
  * Immutable data object for authentication.
@@ -57,6 +61,9 @@ public class AuthenticatedUserData {
     @SuppressWarnings("unused")
     private final boolean isTwoFactorAuthenticationRequired;
 
+    private String sTime;
+    private String tentTime;
+
     public AuthenticatedUserData(final String username, final Collection<String> permissions) {
         this.username = username;
         this.userId = null;
@@ -90,6 +97,11 @@ public class AuthenticatedUserData {
         this.permissions = permissions;
         this.shouldRenewPassword = false;
         this.isTwoFactorAuthenticationRequired = isTwoFactorAuthenticationRequired;
+
+        DateFormat df = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+        this.sTime = df.format(Calendar.getInstance().getTime());
+        this.tentTime = df.format(DateUtils.getDateOfTenant());
+
     }
 
     public AuthenticatedUserData(final String username, final Long userId, final String base64EncodedAuthenticationKey,

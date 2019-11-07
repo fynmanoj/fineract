@@ -66,7 +66,7 @@ public class AccountingConstants {
         FUND_SOURCE(1), LOAN_PORTFOLIO(2), INTEREST_ON_LOANS(3), INCOME_FROM_FEES(4), INCOME_FROM_PENALTIES(5), LOSSES_WRITTEN_OFF(6), INTEREST_RECEIVABLE(
                 7), FEES_RECEIVABLE(8), PENALTIES_RECEIVABLE(9), TRANSFERS_SUSPENSE(10), OVERPAYMENT(11), INCOME_FROM_RECOVERY(12),
         //custom enums to start from 1001 to accommodate Fineract future values
-        NPA_INTEREST_SUSPENSE(1001), NPA_FEES_SUSPENSE(1002),NPA_PENALTIES_SUSPENSE(1003),;
+        NPA_INTEREST_SUSPENSE(1001), NPA_FEES_SUSPENSE(1002),NPA_PENALTIES_SUSPENSE(1003), LOSSES_WAIVED(1004);
 
         private final Integer value;
 
@@ -110,7 +110,8 @@ public class AccountingConstants {
                 "paymentTypeId"), FEE_INCOME_ACCOUNT_MAPPING("feeToIncomeAccountMappings"), PENALTY_INCOME_ACCOUNT_MAPPING(
                 "penaltyToIncomeAccountMappings"), CHARGE_ID("chargeId"), INCOME_ACCOUNT_ID("incomeAccountId"), INCOME_FROM_RECOVERY(
                 "incomeFromRecoveryAccountId"), NPA_INTEREST_SUSPENSE("interestSuspenseAccountIdForNPA"),
-                NPA_FEES_SUSPENSE("feesSuspenseAccountIdForNPA"), NPA_PENALTIES_SUSPENSE("penaltiesSuspenseAccountIdForNPA");
+                NPA_FEES_SUSPENSE("feesSuspenseAccountIdForNPA"), NPA_PENALTIES_SUSPENSE("penaltiesSuspenseAccountIdForNPA"),
+                LOSSES_WAIVED("waiverAccountId");
 
         private final String value;
 
@@ -134,7 +135,7 @@ public class AccountingConstants {
                 "overpaymentLiabilityAccount"), INTEREST_RECEIVABLE("receivableInterestAccount"), FEES_RECEIVABLE("receivableFeeAccount"), PENALTIES_RECEIVABLE(
                 "receivablePenaltyAccount"), TRANSFERS_SUSPENSE("transfersInSuspenseAccount"), INCOME_ACCOUNT_ID("incomeAccount"), INCOME_FROM_RECOVERY(
                 "incomeFromRecoveryAccount"), LIABILITY_TRANSFER_SUSPENSE("liabilityTransferInSuspenseAccount"), NPA_INTEREST_SUSPENSE("interestSuspenseAccountForNPA"),
-        NPA_FEES_SUSPENSE("feesSuspenseAccountForNPA"), NPA_PENALTIES_SUSPENSE("penaltiesSuspenseAccountForNPA");
+                NPA_FEES_SUSPENSE("feesSuspenseAccountForNPA"), NPA_PENALTIES_SUSPENSE("penaltiesSuspenseAccountForNPA"), LOSSES_WAIVED("waiverAccount");
 
         private final String value;
 

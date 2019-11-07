@@ -176,6 +176,39 @@ public class ReportWritePlatformServiceImpl implements ReportWritePlatformServic
                 .build();
     }
 
+
+    @Transactional
+    @Override
+    public CommandProcessingResult enableReport(final Long reportId) {
+
+        final Report report = this.reportRepository.findOne(reportId);
+        if (report == null) { throw new ReportNotFoundException(reportId); }
+
+        report.enableReport();
+
+        this.reportRepository.save(report);
+
+        return new CommandProcessingResultBuilder() //
+                .withEntityId(reportId) //
+                .build();
+    }
+
+    @Transactional
+    @Override
+    public CommandProcessingResult disableReport(final Long reportId) {
+
+        final Report report = this.reportRepository.findOne(reportId);
+        if (report == null) { throw new ReportNotFoundException(reportId); }
+
+        report.disableReport();
+        this.reportRepository.save(report);
+
+
+        return new CommandProcessingResultBuilder() //
+                .withEntityId(reportId) //
+                .build();
+    }
+
     /*
      * Guaranteed to throw an exception no matter what the data integrity issue
      * is.

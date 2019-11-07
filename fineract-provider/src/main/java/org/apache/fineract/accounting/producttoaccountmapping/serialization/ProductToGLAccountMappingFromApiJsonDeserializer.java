@@ -143,6 +143,11 @@ public final class ProductToGLAccountMappingFromApiJsonDeserializer {
 
         if (isAccrualBasedAccounting(accountingRuleType)) {
 
+            final Long waiveAccountId = this.fromApiJsonHelper.extractLongNamed(
+                    LOAN_PRODUCT_ACCOUNTING_PARAMS.LOSSES_WAIVED.getValue(), element);
+            baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.LOSSES_WAIVED.getValue()).value(waiveAccountId)
+                    .notNull().integerGreaterThanZero();
+
             final Long receivableInterestAccountId = this.fromApiJsonHelper.extractLongNamed(
                     LOAN_PRODUCT_ACCOUNTING_PARAMS.INTEREST_RECEIVABLE.getValue(), element);
             baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.INTEREST_RECEIVABLE.getValue())

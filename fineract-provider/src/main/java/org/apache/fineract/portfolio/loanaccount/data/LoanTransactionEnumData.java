@@ -18,8 +18,7 @@
  */
 package org.apache.fineract.portfolio.loanaccount.data;
 
-import static org.apache.fineract.portfolio.loanaccount.domain.LoanTransactionType.ACCRUAL_SUSPENSE;
-import static org.apache.fineract.portfolio.loanaccount.domain.LoanTransactionType.ACCRUAL_SUSPENSE_REVERSE;
+import static org.apache.fineract.portfolio.loanaccount.domain.LoanTransactionType.*;
 
 /**
  * Immutable data object represent loan status enumerations.
@@ -49,6 +48,7 @@ public class LoanTransactionEnumData {
     private final boolean refundForActiveLoans;
     private final boolean accrualSuspense;
     private final boolean accrualReverse;
+    private final boolean accrualWrittenOff;
 
     public LoanTransactionEnumData(final Long id, final String code, final String value) {
         this.id = id;
@@ -72,6 +72,7 @@ public class LoanTransactionEnumData {
         this.refundForActiveLoans = Long.valueOf(18).equals(this.id);
         this.accrualSuspense = Long.valueOf(ACCRUAL_SUSPENSE.getValue()).equals(this.id);
         this.accrualReverse = Long.valueOf(ACCRUAL_SUSPENSE_REVERSE.getValue()).equals(this.id);
+        this.accrualWrittenOff = Long.valueOf(ACCRUAL_WRITEOFF.getValue()).equals(this.id);
     }
 
     public Long id() {
@@ -163,5 +164,9 @@ public class LoanTransactionEnumData {
 
     public boolean isAccrualReverse() {
         return accrualReverse;
+    }
+
+    public boolean isAccrualWrittenOff() {
+        return this.accrualWrittenOff;
     }
 }

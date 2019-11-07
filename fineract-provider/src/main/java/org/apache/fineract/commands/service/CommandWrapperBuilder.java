@@ -347,6 +347,22 @@ public class CommandWrapperBuilder {
         this.href = "/reports/" + id;
         return this;
     }
+    public CommandWrapperBuilder enableReport(final Long id) {
+        this.actionName = "ENABLE";
+        this.entityName = "REPORT";
+        this.entityId = id;
+        this.href = "/reports/" + id;
+        return this;
+    }
+
+    public CommandWrapperBuilder disableReport(final Long id) {
+        this.actionName = "DISABLE";
+        this.entityName = "REPORT";
+        this.entityId = id;
+        this.href = "/reports/" + id;
+        return this;
+    }
+
 
     public CommandWrapperBuilder deleteReport(final Long id) {
         this.actionName = "DELETE";
