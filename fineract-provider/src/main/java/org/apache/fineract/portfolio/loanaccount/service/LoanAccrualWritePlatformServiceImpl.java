@@ -92,6 +92,7 @@ public class LoanAccrualWritePlatformServiceImpl implements LoanAccrualWritePlat
         Collection<LoanTransactionData> loanWaiverTansactionData = new ArrayList<>(1);
 
         for (final LoanScheduleAccrualData accrualData : loanScheduleAccrualDatas) {
+
             if (accrualData.getWaivedInterestIncome() != null && loanWaiverScheduleData.isEmpty()) {
                 loanWaiverScheduleData = this.loanReadPlatformService.fetchWaiverInterestRepaymentData(accrualData.getLoanId());
                 loanWaiverTansactionData = this.loanReadPlatformService.retrieveWaiverLoanTransactions(accrualData.getLoanId());

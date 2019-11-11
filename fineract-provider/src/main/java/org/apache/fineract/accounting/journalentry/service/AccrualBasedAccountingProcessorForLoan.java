@@ -102,8 +102,11 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
                         ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF);
             } else if ((loanTransactionDTO.getTransactionType().isWaiveInterest() || loanTransactionDTO
                     .getTransactionType().isWaiveCharges())) {
+                ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
+                if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+                    expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
                 createJournalEntriesForRepaymentsAndWriteOffs(loanDTO, loanTransactionDTO, office, true, false,
-                        ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED);
+                        expenseAccount );
             }
 
             /** Logic for Refunds of Active Loans **/
@@ -645,22 +648,30 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
 
         // create journal entries for recognizing interest (or reversal)
         if (interestAmount != null && !(interestAmount.compareTo(BigDecimal.ZERO) == 0)) {
-            this.helper.createAccrualBasedJournalEntriesAndReversalsForLoan(office, currencyCode, ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED
-                            .getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.INTEREST_RECEIVABLE.getValue(), loanProductId, paymentTypeId, loanId,
+            ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
+            if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+                expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
+            this.helper.createAccrualBasedJournalEntriesAndReversalsForLoan(office, currencyCode,
+                    expenseAccount.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.INTEREST_RECEIVABLE.getValue(), loanProductId, paymentTypeId, loanId,
                     transactionId, transactionDate, interestAmount, isReversed, loanTransactionDTO.getTranGroupRef());
         }
         // create journal entries for the fees application (or reversal)
         if (feesAmount != null && !(feesAmount.compareTo(BigDecimal.ZERO) == 0)) {
+            ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
+            if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+                expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
-                    ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.FEES_RECEIVABLE.getValue(),
+                    expenseAccount.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.FEES_RECEIVABLE.getValue(),
                     loanProductId, loanId, transactionId, transactionDate, feesAmount, isReversed, loanTransactionDTO.getFeePayments(),
                     loanTransactionDTO.getTranGroupRef());
         }
         // create journal entries for the penalties application (or reversal)
         if (penaltiesAmount != null && !(penaltiesAmount.compareTo(BigDecimal.ZERO) == 0)) {
-
+            ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
+            if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+                expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
-                    ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.PENALTIES_RECEIVABLE.getValue(),
+                    expenseAccount.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.PENALTIES_RECEIVABLE.getValue(),
                     loanProductId, loanId, transactionId, transactionDate, penaltiesAmount, isReversed,
                     loanTransactionDTO.getPenaltyPayments(), loanTransactionDTO.getTranGroupRef());
         }
