@@ -103,8 +103,11 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
             } else if ((loanTransactionDTO.getTransactionType().isWaiveInterest() || loanTransactionDTO
                     .getTransactionType().isWaiveCharges())) {
                 ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
-                if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+                try {
+                    this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId());
+                }catch(ProductToGLAccountMappingNotFoundException e) {
                     expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
+                }
                 createJournalEntriesForRepaymentsAndWriteOffs(loanDTO, loanTransactionDTO, office, true, false,
                         expenseAccount );
             }
@@ -649,8 +652,11 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
         // create journal entries for recognizing interest (or reversal)
         if (interestAmount != null && !(interestAmount.compareTo(BigDecimal.ZERO) == 0)) {
             ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
-            if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+            try {
+                this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId());
+            }catch(ProductToGLAccountMappingNotFoundException e) {
                 expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
+            }
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoan(office, currencyCode,
                     expenseAccount.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.INTEREST_RECEIVABLE.getValue(), loanProductId, paymentTypeId, loanId,
                     transactionId, transactionDate, interestAmount, isReversed, loanTransactionDTO.getTranGroupRef());
@@ -658,8 +664,11 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
         // create journal entries for the fees application (or reversal)
         if (feesAmount != null && !(feesAmount.compareTo(BigDecimal.ZERO) == 0)) {
             ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
-            if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+            try {
+                this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId());
+            }catch(ProductToGLAccountMappingNotFoundException e) {
                 expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
+            }
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
                     expenseAccount.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.FEES_RECEIVABLE.getValue(),
                     loanProductId, loanId, transactionId, transactionDate, feesAmount, isReversed, loanTransactionDTO.getFeePayments(),
@@ -668,8 +677,11 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
         // create journal entries for the penalties application (or reversal)
         if (penaltiesAmount != null && !(penaltiesAmount.compareTo(BigDecimal.ZERO) == 0)) {
             ACCRUAL_ACCOUNTS_FOR_LOAN expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WAIVED;
-            if( null == this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId()))
+            try {
+                this.helper.getLinkedGLAccountForLoanProduct(loanDTO.getLoanProductId(), expenseAccount.getValue(), loanTransactionDTO.getPaymentTypeId());
+            }catch(ProductToGLAccountMappingNotFoundException e) {
                 expenseAccount = ACCRUAL_ACCOUNTS_FOR_LOAN.LOSSES_WRITTEN_OFF;
+            }
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
                     expenseAccount.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.PENALTIES_RECEIVABLE.getValue(),
                     loanProductId, loanId, transactionId, transactionDate, penaltiesAmount, isReversed,
