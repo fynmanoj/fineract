@@ -402,6 +402,10 @@ public class AccountingProcessorHelper {
         final Map<GLAccount, BigDecimal> creditDetailsMap = new LinkedHashMap<>();
         for (final ChargePaymentDTO chargePaymentDTO : chargePaymentDTOs) {
             final Long chargeId = chargePaymentDTO.getChargeId();
+            //if charge specific account available
+            receivableAccount = getLinkedGLAccountForLoanCharges(loanProductId, accountTypeToBeDebited, chargeId);
+
+
             final GLAccount chargeSpecificAccount = getLinkedGLAccountForLoanCharges(loanProductId, accountTypeToBeCredited, chargeId);
             BigDecimal chargeSpecificAmount = chargePaymentDTO.getAmount();
 
@@ -1124,6 +1128,8 @@ public class AccountingProcessorHelper {
          *****/
 
         // Vishwas TODO: remove this condition as it should always be true
+
+        // Manoj TODO: Donot remove this condition without cheking the npa accrual/reversal cases
         if (accountMappingTypeId == CASH_ACCOUNTS_FOR_LOAN.INCOME_FROM_FEES.getValue()
                 || accountMappingTypeId == CASH_ACCOUNTS_FOR_LOAN.INCOME_FROM_PENALTIES.getValue()) {
             final ProductToGLAccountMapping chargeSpecificIncomeAccountMapping = this.accountMappingRepository
