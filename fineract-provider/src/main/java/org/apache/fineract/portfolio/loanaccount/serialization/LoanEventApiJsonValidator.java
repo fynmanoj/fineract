@@ -367,7 +367,7 @@ public final class LoanEventApiJsonValidator {
     public void validateInstallmentChargeTransaction(final String json) {
 
         if (StringUtils.isBlank(json)) { return; }
-        Set<String> transactionParameters = new HashSet<>(Arrays.asList("dueDate", "locale", "dateFormat", "installmentNumber"));
+        Set<String> transactionParameters = new HashSet<>(Arrays.asList("dueDate", "locale", "dateFormat", "installmentNumber", "chargeIds"));
 
         final Type typeOfMap = new TypeToken<Map<String, Object>>() {}.getType();
         this.fromApiJsonHelper.checkForUnsupportedParameters(typeOfMap, json, transactionParameters);

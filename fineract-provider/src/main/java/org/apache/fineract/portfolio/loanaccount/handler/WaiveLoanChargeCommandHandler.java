@@ -42,6 +42,6 @@ public class WaiveLoanChargeCommandHandler implements NewCommandSourceHandler {
     @Override
     public CommandProcessingResult processCommand(final JsonCommand command) {
 
-        return this.writePlatformService.waiveLoanCharge(command.getLoanId(), command.entityId(), command);
+        return this.writePlatformService.waiveLoanCharges(command.getLoanId(), command.entityId(), command);
     }
 }

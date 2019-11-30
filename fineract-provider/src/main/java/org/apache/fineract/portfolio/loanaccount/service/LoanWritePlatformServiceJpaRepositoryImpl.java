@@ -965,12 +965,15 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
                 newTransactionDetail.getFeeChargesPortion(currency)) || transactionToAdjust.getPenaltyChargesPortion(
                 currency).isNotEqualTo(newTransactionDetail.getPenaltyChargesPortion(currency)))) {
 
+            Collection<Long> otherTransactionIds = this.loanReadPlatformService.retiriveOtherTxnsFromGroup(transactionToAdjust.getId());
+            for(Long txnId : otherTransactionIds){
+                final LoanTransaction txn = this.loanTransactionRepository.findOne(txnId    );
+                if(txn.isAccrualSuspenseReverse()){
+                    txn.reverse();
+                    txn.manuallyAdjustedOrReversed();
+                }
+            }
 
-
-            /*List<LoanTransaction> referenceTransactions = transactionToAdjust..getLoanTransactions();
-            for (LoanTransaction refeLoanTransaction : referenceTransactions) {
-                refeLoanTransaction.reverse();
-            }*/
             if (newTransactionDetail.isGreaterThanZero(loan.getPrincpal().getCurrency())) {
                 LoanTransaction accrualSuspenseTransaction = this.loanAccountDomainService.createAccrualSuspenseReverseTransaction(loan,
                         newTransactionDetail);
@@ -1574,6 +1577,31 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
                 .withLoanId(loanId) //
                 .with(changes) //
                 .build();
+    }
+
+    @Transactional
+    @Override
+    public CommandProcessingResult waiveLoanCharges(final Long loanId, final Long loanChargeId, final JsonCommand command) {
+        if(loanChargeId==0){
+            if(!command.parameterExists("chargeIds"))
+                throw new GeneralPlatformDomainRuleException("error.msg.charge.ids.expected", "Array of charge ids expected");
+            JsonArray chargeIds  = command.arrayOfParameterNamed("chargeIds");
+            if(chargeIds ==null || chargeIds.size() ==0 )
+                throw new GeneralPlatformDomainRuleException("error.msg.charge.ids.expected", "Array of charge ids expected");
+            final Map<String, Object> changes = new LinkedHashMap<>(chargeIds.size());
+            for(int i =0; i< chargeIds.size() ; i++){
+                Long chargeId  = chargeIds.get(i).getAsLong();
+                if(chargeId == null ) throw new GeneralPlatformDomainRuleException("error.msg.charge.id.expected", "Valid charge id expected", chargeId);
+                changes.put(chargeId.toString(), waiveLoanCharge(loanId, chargeId, command));
+            }
+            return new CommandProcessingResultBuilder() //
+                    .withCommandId(command.commandId()) //
+                    .withEntityId(loanChargeId) //
+                    .withLoanId(loanId) //
+                    .with(changes) //
+                    .build();
+        }else
+            return waiveLoanCharge(loanId, loanChargeId, command) ;
     }
 
     @Transactional
@@ -3088,7 +3116,7 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
         for (final LoanTransaction transaction : transactions) {
             if (transaction.isNotReversed()) {
                 if (transaction.isAccrual()) {
-                    if (transaction.getTransactionDate().isAfter(lastRepaymentDate)) {
+                    if (transaction.getTransactionDate().isAfter(lastRepaymentDate )) {
                         transaction.reverse();
                     } else {
                         receivableInterest = receivableInterest.plus(transaction.getInterestPortion(currency));

@@ -2238,4 +2238,18 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                 formatter.print(DateUtils.getCurrentDateTimeOfTenant()));
     }
 
+    @Override
+    public Collection<Long> retiriveOtherTxnsFromGroup(Long loanTransactionId){
+
+        final String sql = new StringBuilder()
+                .append(" select distinct loan_transaction_id from acc_gl_journal_entry where loan_transaction_id<> ? ")
+                .append(" and ref_num in (select distinct ref_num from acc_gl_journal_entry where loan_transaction_id =? ) ")
+                .append(" and type_enum = 2   ").toString();
+        try {
+            return this.jdbcTemplate.queryForList(sql, Long.class, loanTransactionId, loanTransactionId);
+        }catch (Exception e){
+            return new ArrayList<>();
+        }
+    }
+
 }

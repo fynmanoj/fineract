@@ -20,7 +20,9 @@ package org.apache.fineract.portfolio.loanaccount.data;
 
 import java.math.BigDecimal;
 
+import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.organisation.monetary.data.CurrencyData;
+import org.joda.time.Days;
 import org.joda.time.LocalDate;
 
 /**
@@ -65,6 +67,7 @@ public class LoanSummaryData {
     private final LocalDate overdueSinceDate;
     private final Long writeoffReasonId;
     private final String writeoffReason;
+    private final Integer dpd;
 
     public LoanSummaryData(final CurrencyData currency, final BigDecimal principalDisbursed, final BigDecimal principalPaid,
             final BigDecimal principalWrittenOff, final BigDecimal principalOutstanding, final BigDecimal principalOverdue,
@@ -112,6 +115,11 @@ public class LoanSummaryData {
         this.totalOutstanding = totalOutstanding;
         this.totalOverdue = totalOverdue;
         this.overdueSinceDate = overdueSinceDate;
+        if(this.overdueSinceDate !=null){
+            this.dpd = Days.daysBetween(this.overdueSinceDate, DateUtils.getLocalDateOfTenant()).getDays();
+        }else{
+            this.dpd = 0;
+        }
         this.writeoffReasonId = writeoffReasonId;
         this.writeoffReason = writeoffReason;
     }

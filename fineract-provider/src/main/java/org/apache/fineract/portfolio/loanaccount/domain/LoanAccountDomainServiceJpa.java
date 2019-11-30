@@ -194,7 +194,7 @@ public class LoanAccountDomainServiceJpa implements LoanAccountDomainService {
 
         LoanTransaction accrualSuspenseTransaction = null;
         final MonetaryCurrency currency = loan.getCurrency();
-
+        //TODO: isNpa may not be valid check
         if (loan.isNpa()
                 && (newRepaymentTransaction.getInterestPortion(currency).isGreaterThanZero()
                 || newRepaymentTransaction.getFeeChargesPortion(currency).isGreaterThanZero() || newRepaymentTransaction

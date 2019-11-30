@@ -194,7 +194,14 @@ public class LoanChargesApiResource {
 
         final CommandWrapperBuilder builder = new CommandWrapperBuilder().withJson(apiRequestBodyAsJson);
         CommandProcessingResult result = null;
-        if (is(commandParam, "waive")) {
+        if(loanChargeId == 0){
+            if (is(commandParam, "waive")) {
+                final CommandWrapper commandRequest = builder.waiveLoanCharge(loanId, loanChargeId).build();
+                result = this.commandsSourceWritePlatformService.logCommandSource(commandRequest);
+            } else {
+                throw new UnrecognizedQueryParamException("command", commandParam);
+            }
+        }else if (is(commandParam, "waive")) {
             final CommandWrapper commandRequest = builder.waiveLoanCharge(loanId, loanChargeId).build();
             result = this.commandsSourceWritePlatformService.logCommandSource(commandRequest);
         } else if (is(commandParam, "pay")) {

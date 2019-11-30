@@ -34,6 +34,7 @@ import org.apache.fineract.accounting.glaccount.domain.GLAccount;
 import org.apache.fineract.accounting.journalentry.data.ChargePaymentDTO;
 import org.apache.fineract.accounting.journalentry.data.LoanDTO;
 import org.apache.fineract.accounting.journalentry.data.LoanTransactionDTO;
+import org.apache.fineract.accounting.producttoaccountmapping.exception.ProductToGLAccountMappingNotFoundException;
 import org.apache.fineract.organisation.office.domain.Office;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -517,20 +518,38 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
         final boolean isReversed = loanTransactionDTO.isReversed();
         final Long paymentTypeId = loanTransactionDTO.getPaymentTypeId();
 
+        GLAccount interestAccount =  null ;
+        try {
+            interestAccount = this.helper.getLinkedGLAccountForLoanProduct(loanProductId, ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_INTEREST_SUSPENSE.getValue(), paymentTypeId);
+        }catch(ProductToGLAccountMappingNotFoundException e){
+
+        }
+        GLAccount feesAccount = null;
+        try{
+            feesAccount = this.helper.getLinkedGLAccountForLoanProduct(loanProductId, ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_FEES_SUSPENSE.getValue(), paymentTypeId);
+        }catch(ProductToGLAccountMappingNotFoundException e){
+
+        }
+        GLAccount penaltiesAccount = null;
+        try{
+            penaltiesAccount = this.helper.getLinkedGLAccountForLoanProduct(loanProductId, ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_PENALTIES_SUSPENSE.getValue(), paymentTypeId);
+        }catch(ProductToGLAccountMappingNotFoundException e){
+
+        }
         // create journal entries for recognizing interest (or reversal)
-        if (interestAmount != null && !(interestAmount.compareTo(BigDecimal.ZERO) == 0)) {
+        if (interestAmount != null && !(interestAmount.compareTo(BigDecimal.ZERO) == 0) && interestAccount != null) {
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoan(office, currencyCode,
                     ACCRUAL_ACCOUNTS_FOR_LOAN.INTEREST_ON_LOANS.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_INTEREST_SUSPENSE.getValue(),
                     loanProductId, paymentTypeId, loanId, transactionId, transactionDate, interestAmount, isReversed, loanTransactionDTO.getTranGroupRef());
         }
         // create journal entries for the fees application (or reversal)
-        if (feesAmount != null && !(feesAmount.compareTo(BigDecimal.ZERO) == 0)) {
+        if (feesAmount != null && !(feesAmount.compareTo(BigDecimal.ZERO) == 0) && feesAccount != null) {
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
                     ACCRUAL_ACCOUNTS_FOR_LOAN.INCOME_FROM_FEES.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_FEES_SUSPENSE.getValue(),
                     loanProductId, loanId, transactionId, transactionDate, feesAmount, isReversed, loanTransactionDTO.getFeePayments(), loanTransactionDTO.getTranGroupRef());
         }
         // create journal entries for the penalties application (or reversal)
-        if (penaltiesAmount != null && !(penaltiesAmount.compareTo(BigDecimal.ZERO) == 0)) {
+        if (penaltiesAmount != null && !(penaltiesAmount.compareTo(BigDecimal.ZERO) == 0) && penaltiesAccount != null) {
 
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
                     ACCRUAL_ACCOUNTS_FOR_LOAN.INCOME_FROM_PENALTIES.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_PENALTIES_SUSPENSE.getValue(),
@@ -557,20 +576,39 @@ public class AccrualBasedAccountingProcessorForLoan implements AccountingProcess
         final boolean isReversed = loanTransactionDTO.isReversed();
         final Long paymentTypeId = loanTransactionDTO.getPaymentTypeId();
 
-        if (interestAmount != null && !(interestAmount.compareTo(BigDecimal.ZERO) == 0)) {
+        GLAccount interestAccount =  null ;
+        try {
+            interestAccount = this.helper.getLinkedGLAccountForLoanProduct(loanProductId, ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_INTEREST_SUSPENSE.getValue(), paymentTypeId);
+        }catch(ProductToGLAccountMappingNotFoundException e){
+
+        }
+        GLAccount feesAccount = null;
+        try{
+            feesAccount = this.helper.getLinkedGLAccountForLoanProduct(loanProductId, ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_FEES_SUSPENSE.getValue(), paymentTypeId);
+        }catch(ProductToGLAccountMappingNotFoundException e){
+
+        }
+        GLAccount penaltiesAccount = null;
+        try{
+            penaltiesAccount = this.helper.getLinkedGLAccountForLoanProduct(loanProductId, ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_PENALTIES_SUSPENSE.getValue(), paymentTypeId);
+        }catch(ProductToGLAccountMappingNotFoundException e){
+
+        }
+
+        if (interestAmount != null && !(interestAmount.compareTo(BigDecimal.ZERO) == 0) && interestAccount != null) {
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoan(office, currencyCode,
                     ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_INTEREST_SUSPENSE.getValue(),
                     ACCRUAL_ACCOUNTS_FOR_LOAN.INTEREST_ON_LOANS.getValue(), loanProductId, paymentTypeId, loanId, transactionId,
                     transactionDate, interestAmount, isReversed, loanTransactionDTO.getTranGroupRef());
         }
         // create journal entries for the fees application (or reversal)
-        if (feesAmount != null && !(feesAmount.compareTo(BigDecimal.ZERO) == 0)) {
+        if (feesAmount != null && !(feesAmount.compareTo(BigDecimal.ZERO) == 0) && feesAccount != null) {
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
                     ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_FEES_SUSPENSE.getValue(), ACCRUAL_ACCOUNTS_FOR_LOAN.INCOME_FROM_FEES.getValue(),
                     loanProductId, loanId, transactionId, transactionDate, feesAmount, isReversed, loanTransactionDTO.getFeePayments(), loanTransactionDTO.getTranGroupRef());
         }
         // create journal entries for the penalties application (or reversal)
-        if (penaltiesAmount != null && !(penaltiesAmount.compareTo(BigDecimal.ZERO) == 0)) {
+        if (penaltiesAmount != null && !(penaltiesAmount.compareTo(BigDecimal.ZERO) == 0) && penaltiesAccount != null) {
 
             this.helper.createAccrualBasedJournalEntriesAndReversalsForLoanCharges(office, currencyCode,
                     ACCRUAL_ACCOUNTS_FOR_LOAN.NPA_PENALTIES_SUSPENSE.getValue(),

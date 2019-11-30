@@ -624,20 +624,26 @@ public final class LoanProductDataValidator {
             baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.PENALTIES_RECEIVABLE.getValue())
                     .value(receivablePenaltyAccountId).notNull().integerGreaterThanZero();
 
-            final Long interestSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
-                    LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue(), element);
-            baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue()).value(interestSuspenseAccountIdForNPA)
-                    .notNull().integerGreaterThanZero();
+            if(this.fromApiJsonHelper.parameterExists(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue(), element)) {
+                final Long interestSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
+                        LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue(), element);
+                baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue()).value(interestSuspenseAccountIdForNPA)
+                        .notNull().integerGreaterThanZero();
+            }
 
-            final Long feesSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
-                    LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue(), element);
-            baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue()).value(feesSuspenseAccountIdForNPA)
-                    .notNull().integerGreaterThanZero();
+            if(this.fromApiJsonHelper.parameterExists(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue(), element)) {
+                final Long feesSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
+                        LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue(), element);
+                baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue()).value(feesSuspenseAccountIdForNPA)
+                        .notNull().integerGreaterThanZero();
+            }
 
-            final Long penaltiesSuspenseAccountIdForNPA  = this.fromApiJsonHelper.extractLongNamed(
-                    LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue(), element);
-            baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue()).value(penaltiesSuspenseAccountIdForNPA)
-                    .notNull().integerGreaterThanZero();
+            if(this.fromApiJsonHelper.parameterExists( LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue(), element)) {
+                final Long penaltiesSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
+                        LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue(), element);
+                baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue()).value(penaltiesSuspenseAccountIdForNPA)
+                        .notNull().integerGreaterThanZero();
+            }
         }
 
         if (this.fromApiJsonHelper.parameterExists(LoanProductConstants.useBorrowerCycleParameterName, element)) {
@@ -1486,21 +1492,24 @@ public final class LoanProductDataValidator {
         baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.PENALTIES_RECEIVABLE.getValue())
                 .value(receivablePenaltyAccountId).ignoreIfNull().integerGreaterThanZero();
 
-        final Long interestSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
-                LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue(), element);
-        baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue()).value(interestSuspenseAccountIdForNPA)
-                .notNull().integerGreaterThanZero();
-
-        final Long feesSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
-                LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue(), element);
-        baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue()).value(feesSuspenseAccountIdForNPA)
-                .notNull().integerGreaterThanZero();
-
-        final Long penaltiesSuspenseAccountIdForNPA  = this.fromApiJsonHelper.extractLongNamed(
-                LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue(), element);
-        baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue()).value(penaltiesSuspenseAccountIdForNPA)
-                .notNull().integerGreaterThanZero();
-
+        if(this.fromApiJsonHelper.parameterExists(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue(), element)) {
+            final Long interestSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
+                    LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue(), element);
+            baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_INTEREST_SUSPENSE.getValue()).value(interestSuspenseAccountIdForNPA)
+                    .notNull().integerGreaterThanZero();
+        }
+        if(this.fromApiJsonHelper.parameterExists(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue(), element)) {
+            final Long feesSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
+                    LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue(), element);
+            baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_FEES_SUSPENSE.getValue()).value(feesSuspenseAccountIdForNPA)
+                    .notNull().integerGreaterThanZero();
+        }
+        if(this.fromApiJsonHelper.parameterExists(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue(), element)) {
+            final Long penaltiesSuspenseAccountIdForNPA = this.fromApiJsonHelper.extractLongNamed(
+                    LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue(), element);
+            baseDataValidator.reset().parameter(LOAN_PRODUCT_ACCOUNTING_PARAMS.NPA_PENALTIES_SUSPENSE.getValue()).value(penaltiesSuspenseAccountIdForNPA)
+                    .notNull().integerGreaterThanZero();
+        }
         validatePaymentChannelFundSourceMappings(baseDataValidator, element);
         validateChargeToIncomeAccountMappings(baseDataValidator, element);
 

@@ -138,4 +138,6 @@ public interface LoanReadPlatformService {
 	String retrieveAccountNumberByAccountId(Long accountId);
 
     Collection<Long> retriveNewNPALoans();
+
+    Collection<Long> retiriveOtherTxnsFromGroup(Long loanTransactionId);
 }

@@ -64,9 +64,12 @@ public interface LoanWritePlatformService {
 
     CommandProcessingResult updateLoanCharge(Long loanId, Long loanChargeId, JsonCommand command);
 
+    @Transactional
+    CommandProcessingResult waiveLoanCharge(Long loanId, Long loanChargeId, JsonCommand command);
+
     CommandProcessingResult deleteLoanCharge(Long loanId, Long loanChargeId, JsonCommand command);
 
-    CommandProcessingResult waiveLoanCharge(Long loanId, Long loanChargeId, JsonCommand command);
+    CommandProcessingResult waiveLoanCharges(Long loanId, Long loanChargeId, JsonCommand command);
 
     CommandProcessingResult loanReassignment(Long loanId, JsonCommand command);
 
