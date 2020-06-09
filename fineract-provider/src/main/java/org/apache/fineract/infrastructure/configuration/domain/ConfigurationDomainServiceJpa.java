@@ -346,4 +346,14 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
         }
     }
 
+
+    @Override
+    public Integer retrieveEncKeyExpirySeconds(String type) {
+        final String propertyName = "enc-key-" + type + "-valid-upto-seconds";
+        final GlobalConfigurationPropertyData property = getGlobalConfigurationPropertyData(propertyName);
+        if(null != property && property.getValue() > 0)
+            return property.getValue().intValue();
+        return -1;
+    }
+
 }
