@@ -26,6 +26,8 @@ import org.apache.fineract.infrastructure.cache.domain.CacheType;
 import org.apache.fineract.infrastructure.cache.domain.PlatformCache;
 import org.apache.fineract.infrastructure.cache.domain.PlatformCacheRepository;
 import org.apache.fineract.infrastructure.configuration.data.GlobalConfigurationPropertyData;
+import org.apache.fineract.infrastructure.configuration.exception.GlobalConfigurationPropertyNotFoundException;
+import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.useradministration.domain.Permission;
 import org.apache.fineract.useradministration.domain.PermissionRepository;
 import org.apache.fineract.useradministration.exception.PermissionNotFoundException;
@@ -512,6 +514,19 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
             return defaultValue;
         }
         return value;
+    }
+    @Override
+    public Integer retrieveEncKeyExpirySeconds(String type) {
+        final String propertyName = "enc-key-" + type + "-valid-upto-seconds";
+        try {
+            final GlobalConfigurationPropertyData property = getGlobalConfigurationPropertyData(propertyName);
+            if (null != property && property.getValue() > 0) {
+                return property.getValue().intValue();
+            }
+        }catch(GlobalConfigurationPropertyNotFoundException e ){
+            return -1;
+        }
+        return -1;
     }
 
 }

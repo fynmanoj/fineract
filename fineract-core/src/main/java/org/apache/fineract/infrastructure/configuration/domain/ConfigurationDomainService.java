@@ -139,4 +139,5 @@ public interface ConfigurationDomainService {
 
     String getAccrualDateConfigForCharge();
 
+    Integer retrieveEncKeyExpirySeconds(String type);
 }
