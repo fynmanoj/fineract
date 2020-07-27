@@ -29,12 +29,16 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+
+import org.apache.fineract.infrastructure.core.exception.GeneralPlatformDomainRuleException;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
+import org.apache.fineract.organisation.holiday.service.HolidayUtil;
 import org.apache.fineract.organisation.monetary.domain.ApplicationCurrency;
 import org.apache.fineract.organisation.monetary.domain.MonetaryCurrency;
 import org.apache.fineract.organisation.monetary.domain.Money;
 import org.apache.fineract.organisation.workingdays.data.AdjustedDateDetailsDTO;
 import org.apache.fineract.organisation.workingdays.domain.RepaymentRescheduleType;
+import org.apache.fineract.organisation.workingdays.service.WorkingDaysUtil;
 import org.apache.fineract.portfolio.calendar.domain.CalendarInstance;
 import org.apache.fineract.portfolio.calendar.service.CalendarUtils;
 import org.apache.fineract.portfolio.common.domain.PeriodFrequencyType;
@@ -2341,6 +2345,10 @@ public abstract class AbstractLoanScheduleGenerator implements LoanScheduleGener
             periods.clear();
         }
         LoanScheduleModel loanScheduleModel = generate(mc, loanApplicationTerms, loan.charges(), holidayDetailDTO, loanScheduleParams);
+        //check if first installment after reschedule is a holiday
+        if(!loanApplicationTerms.isFirstRepaymentDateAllowedOnHoliday())
+        	checkIfFirstRepaymentDateisOnHolidayOrNonWorkingDay(holidayDetailDTO, loanScheduleModel);
+        
         for (LoanScheduleModelPeriod loanScheduleModelPeriod : loanScheduleModel.getPeriods()) {
             if (loanScheduleModelPeriod.isRepaymentPeriod()) {
                 // adding newly created repayment periods to installments
@@ -2352,7 +2360,23 @@ public abstract class AbstractLoanScheduleGenerator implements LoanScheduleGener
         return LoanScheduleDTO.from(retainedInstallments, loanScheduleModelwithPeriodChanges);
     }
 
-    public List<LoanRepaymentScheduleInstallment> fetchRetainedInstallments(
+    private void checkIfFirstRepaymentDateisOnHolidayOrNonWorkingDay(HolidayDetailDTO holidayDetailDTO,
+    		LoanScheduleModel loanScheduleModel) {
+    	
+    	if(loanScheduleModel !=null && loanScheduleModel.getPeriods()!=null && loanScheduleModel.getPeriods().iterator()!=null &&
+    			loanScheduleModel.getPeriods().iterator().next()!=null  && loanScheduleModel.getPeriods().iterator().next().periodDueDate()!=null){
+    		
+    		if(WorkingDaysUtil.isNonWorkingDay(holidayDetailDTO.getWorkingDays(), loanScheduleModel.getPeriods().iterator().next().periodDueDate()) ||
+    				HolidayUtil.getApplicableHoliday(loanScheduleModel.getPeriods().iterator().next().periodDueDate(),
+    						holidayDetailDTO.getHolidays()) != null) {
+    			throw new GeneralPlatformDomainRuleException("error.msg.first.installment.date.after.reschedule.should.be.a.working.day", "As per configiration, the first repayment date after reschedule should be a working day");
+    		}
+    	}
+    	
+		
+	}
+
+	public List<LoanRepaymentScheduleInstallment> fetchRetainedInstallments(
             final List<LoanRepaymentScheduleInstallment> repaymentScheduleInstallments, final LocalDate rescheduleFrom,
             MonetaryCurrency currency) {
         List<LoanRepaymentScheduleInstallment> newRepaymentScheduleInstallments = new ArrayList<>();
