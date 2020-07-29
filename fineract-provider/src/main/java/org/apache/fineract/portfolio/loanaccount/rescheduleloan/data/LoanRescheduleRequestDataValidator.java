@@ -21,9 +21,11 @@ package org.apache.fineract.portfolio.loanaccount.rescheduleloan.data;
 import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +58,8 @@ public class LoanRescheduleRequestDataValidator {
                     RescheduleLoansApiConstants.rescheduleFromDateParamName, RescheduleLoansApiConstants.newInterestRateParamName,
                     RescheduleLoansApiConstants.rescheduleReasonIdParamName, RescheduleLoansApiConstants.rescheduleReasonCommentParamName,
                     RescheduleLoansApiConstants.submittedOnDateParamName, RescheduleLoansApiConstants.loanIdParamName,
-                    RescheduleLoansApiConstants.adjustedDueDateParamName, RescheduleLoansApiConstants.recalculateInterestParamName));
+                    RescheduleLoansApiConstants.adjustedDueDateParamName, RescheduleLoansApiConstants.recalculateInterestParamName,
+                    RescheduleLoansApiConstants.endDateParamName, RescheduleLoansApiConstants.emiParamName));
 
     private static final Set<String> REJECT_REQUEST_DATA_PARAMETERS = new HashSet<>(
             Arrays.asList(RescheduleLoansApiConstants.localeParamName, RescheduleLoansApiConstants.dateFormatParamName,
@@ -140,6 +143,27 @@ public class LoanRescheduleRequestDataValidator {
                 .extractStringNamed(RescheduleLoansApiConstants.rescheduleReasonCommentParamName, jsonElement);
         dataValidatorBuilder.reset().parameter(RescheduleLoansApiConstants.rescheduleReasonCommentParamName).value(rescheduleReasonComment)
                 .ignoreIfNull().notExceedingLengthOf(500);
+        
+        
+        if(this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.emiParamName, jsonElement) || 
+        		this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.endDateParamName, jsonElement)) {
+        	final LocalDate endDate =  jsonCommand.localDateValueOfParameterNamed(RescheduleLoansApiConstants.endDateParamName);
+            final BigDecimal emi = jsonCommand.bigDecimalValueOfParameterNamed(RescheduleLoansApiConstants.emiParamName);
+            
+        	dataValidatorBuilder.reset().parameter(RescheduleLoansApiConstants.endDateParamName).value(endDate).notNull();
+        	dataValidatorBuilder.reset().parameter(RescheduleLoansApiConstants.emiParamName).value(emi).notNull().positiveAmount();
+        	
+        	 if (endDate != null) {
+        		 LoanRepaymentScheduleInstallment endInstallment = loan.getRepaymentScheduleInstallment(endDate);
+
+                 if (endInstallment == null) {
+                     dataValidatorBuilder.reset().parameter(RescheduleLoansApiConstants.endDateParamName)
+                             .failWithCode("repayment.schedule.installment.does.not.exist", "Repayment schedule installment does not exist");
+                 }
+        	 }
+
+        }
+        
 
         final LocalDate adjustedDueDate = this.fromJsonHelper.extractLocalDateNamed(RescheduleLoansApiConstants.adjustedDueDateParamName,
                 jsonElement);
@@ -155,7 +179,8 @@ public class LoanRescheduleRequestDataValidator {
                 && !this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.graceOnInterestParamName, jsonElement)
                 && !this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.extraTermsParamName, jsonElement)
                 && !this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.newInterestRateParamName, jsonElement)
-                && !this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.adjustedDueDateParamName, jsonElement)) {
+                && !this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.adjustedDueDateParamName, jsonElement)
+                && !this.fromJsonHelper.parameterExists(RescheduleLoansApiConstants.emiParamName	, jsonElement)) {
             dataValidatorBuilder.reset().parameter(RescheduleLoansApiConstants.graceOnPrincipalParamName).notNull();
         }
         LoanRepaymentScheduleInstallment installment = null;

@@ -353,7 +353,7 @@ public abstract class AbstractLoanScheduleGenerator implements LoanScheduleGener
             scheduleParams.incrementInstalmentNumber();
             scheduleParams.incrementPeriodNumber();
             if (termVariationParams.isRecalculateAmounts()) {
-                loanApplicationTerms.setCurrentPeriodFixedEmiAmount(null);
+            	loanApplicationTerms.setCurrentPeriodFixedEmiAmount(null);
                 loanApplicationTerms.setCurrentPeriodFixedPrincipalAmount(null);
                 adjustInstallmentOrPrincipalAmount(loanApplicationTerms, scheduleParams.getTotalCumulativePrincipal(),
                         scheduleParams.getPeriodNumber(), mc);
@@ -1063,7 +1063,7 @@ public abstract class AbstractLoanScheduleGenerator implements LoanScheduleGener
                         loanApplicationTerms.setCurrentPeriodFixedEmiAmount(loanTermVariationsData.getDecimalValue());
                         recalculateAmounts = true;
                     } else {
-                        loanApplicationTerms.setFixedEmiAmount(loanTermVariationsData.getDecimalValue());
+                    	loanApplicationTerms.setFixedEmiAmount(loanTermVariationsData.getDecimalValue());
                     }
                     loanTermVariationsData.setProcessed(true);
                 break;

@@ -1631,7 +1631,7 @@ public final class LoanApplicationTerms {
     public void setCurrentPeriodFixedEmiAmount(BigDecimal currentPeriodFixedEmiAmount) {
         this.currentPeriodFixedEmiAmount = currentPeriodFixedEmiAmount;
     }
-
+    
     public BigDecimal getCurrentPeriodFixedPrincipalAmount() {
         return this.currentPeriodFixedPrincipalAmount;
     }
