@@ -72,12 +72,12 @@ public class LoanRescheduleRequestTestBuilder {
         if (rescheduleReasonComment != null) {
             map.put("rescheduleReasonComment", rescheduleReasonComment);
         }
-        
+
         if (emi != null) {
             map.put("emi", emi);
         }
-        
-        if (emiEndDate	 != null) {
+
+        if (emiEndDate != null) {
             map.put("endDate", emiEndDate);
         }
 
@@ -145,15 +145,15 @@ public class LoanRescheduleRequestTestBuilder {
 
         return this;
     }
-    
+
     public LoanRescheduleRequestTestBuilder updateEmiChangeEndDate(final String emiChangeEndDate) {
-    	this.emiEndDate = emiChangeEndDate;
-    	return this;
+        this.emiEndDate = emiChangeEndDate;
+        return this;
     }
-    
+
     public LoanRescheduleRequestTestBuilder updateEMI(final String emi) {
-    	this.emi = emi;
-    	return this;
+        this.emi = emi;
+        return this;
     }
 
     public String getRejectLoanRescheduleRequestJSON() {

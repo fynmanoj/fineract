@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.fineract.organisation.monetary.domain.Money;
+import org.apache.fineract.organisation.workingdays.data.AdjustedDateDetailsDTO;
 import org.apache.fineract.portfolio.loanaccount.data.LoanTermVariationsData;
 import org.apache.fineract.portfolio.loanproduct.domain.AmortizationMethod;
 import org.joda.time.Days;
@@ -120,12 +121,33 @@ public class DecliningBalanceInterestLoanScheduleGenerator extends AbstractLoanS
                 }
             }
         }
-
+        
         final PrincipalInterest result = loanApplicationTerms.calculateTotalInterestForPeriod(calculator,
                 interestCalculationGraceOnRepaymentPeriodFraction, periodNumber, mc, cumulatingInterestDueToGrace,
                 balanceForInterestCalculation, interestStartDate, periodEndDate);
-
-        interestForThisInstallment = interestForThisInstallment.plus(result.interest());
+        
+        if (loanApplicationTerms.isInterestToBeAppropriatedEquallyWhenGreaterThanEMIEnabled() && !result.interest().isZero()
+                && !interestForThisInstallment.isZero()) {
+            loanApplicationTerms.setInterestTobeApproppriated(result.interest());
+        } else {
+            interestForThisInstallment = interestForThisInstallment.plus(result.interest());
+        }
+        
+        if(loanApplicationTerms.getFixedEmiAmount()!=null 
+                && loanApplicationTerms.isInterestToBeAppropriatedEquallyWhenGreaterThanEMIEnabled() 
+                && interestForThisInstallment.isGreaterThan(Money.of(interestForThisInstallment.getCurrency(), loanApplicationTerms.getFixedEmiAmount()))) {
+            LocalDate actualPeriodEndDate = this.scheduledDateGenerator.generateNextRepaymentDate(interestStartDate, loanApplicationTerms, false);
+            //AdjustedDateDetailsDTO adjustedDateDetailsDTO = this.scheduledDateGenerator
+              //      .adjustRepaymentDate(actualPeriodEndDate, loanApplicationTerms, loanApplicationTerms.getHolidayDetailDTO());
+            
+            PrincipalInterest tempInterest = loanApplicationTerms.calculateTotalInterestForPeriod(calculator,
+                    interestCalculationGraceOnRepaymentPeriodFraction, periodNumber, mc, cumulatingInterestDueToGrace,
+                    balanceForInterestCalculation, interestStartDate, actualPeriodEndDate);
+           
+            loanApplicationTerms.setInterestTobeApproppriated(interestForThisInstallment.minus(tempInterest.interest()));
+            interestForThisInstallment = tempInterest.interest();
+        }
+        
         cumulatingInterestDueToGrace = result.interestPaymentDueToGrace();
 
         Money interestForPeriod = interestForThisInstallment;

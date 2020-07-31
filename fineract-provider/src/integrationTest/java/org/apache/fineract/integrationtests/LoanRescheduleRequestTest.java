@@ -206,22 +206,16 @@ public class LoanRescheduleRequestTest {
 
         LOG.info("Successfully approved loan reschedule request (ID: {})", this.loanRescheduleRequestId);
     }
-    
+
     /**
      * create new loan reschedule request
      **/
     private void createLoanRescheduleChangeEMIRequest() {
         LOG.info("---------------------------------CREATING LOAN RESCHEDULE REQUEST------------------------------------------");
 
-        final String requestJSON = new LoanRescheduleRequestTestBuilder().
-        		updateGraceOnPrincipal(null).
-        		updateGraceOnInterest(null).
-        		updateExtraTerms(null).
-        		updateEMI("5000").
-        		updateEmiChangeEndDate("4 February 2015").
-        		updateRescheduleFromDate( "05 January 2015").
-        		updateRecalculateInterest(true).
-        		build(this.loanId.toString());
+        final String requestJSON = new LoanRescheduleRequestTestBuilder().updateGraceOnPrincipal(null).updateGraceOnInterest(null)
+                .updateExtraTerms(null).updateEMI("5000").updateEmiChangeEndDate("4 February 2015")
+                .updateRescheduleFromDate("05 January 2015").updateRecalculateInterest(true).build(this.loanId.toString());
 
         this.loanRescheduleRequestId = this.loanRescheduleRequestHelper.createLoanRescheduleRequest(requestJSON);
         this.loanRescheduleRequestHelper.verifyCreationOfLoanRescheduleRequest(this.loanRescheduleRequestId);

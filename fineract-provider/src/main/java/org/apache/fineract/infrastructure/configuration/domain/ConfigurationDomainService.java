@@ -95,5 +95,7 @@ public interface ConfigurationDomainService {
 
     boolean isSubRatesEnabled();
 
-	boolean isFirstRepaymentDateAfterRescheduleAllowedOnHoliday();
+    boolean isFirstRepaymentDateAfterRescheduleAllowedOnHoliday();
+
+    boolean isInterestToBeAppropriatedEquallyWhenGreaterThanEMI();
 }

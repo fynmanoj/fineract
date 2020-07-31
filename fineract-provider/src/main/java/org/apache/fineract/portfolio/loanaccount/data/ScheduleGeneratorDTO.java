@@ -44,6 +44,7 @@ public class ScheduleGeneratorDTO {
     final boolean isSkipRepaymentOnFirstDayofMonth;
     final Boolean isChangeEmiIfRepaymentDateSameAsDisbursementDateEnabled;
     final boolean isFirstRepaymentDateAllowedOnHoliday;
+    final boolean isInterestToBeAppropriatedEquallyWhenGreaterThanEMI;
 
     public ScheduleGeneratorDTO(final LoanScheduleGeneratorFactory loanScheduleFactory, final ApplicationCurrency applicationCurrency,
             final LocalDate calculatedRepaymentsStartingFromDate, final HolidayDetailDTO holidayDetailDTO,
@@ -52,7 +53,7 @@ public class ScheduleGeneratorDTO {
             final Calendar calendar, final CalendarHistoryDataWrapper calendarHistoryDataWrapper,
             final Boolean isInterestChargedFromDateAsDisbursementDateEnabled, final Integer numberOfdays,
             final boolean isSkipRepaymentOnFirstDayofMonth, final Boolean isChangeEmiIfRepaymentDateSameAsDisbursementDateEnabled,
-            final boolean isFirstRepaymentDateAllowedOnHoliday) {
+            final boolean isFirstRepaymentDateAllowedOnHoliday, final boolean isInterestToBeAppropriatedEquallyWhenGreaterThanEMI) {
 
         this.loanScheduleFactory = loanScheduleFactory;
         this.applicationCurrency = applicationCurrency;
@@ -70,6 +71,7 @@ public class ScheduleGeneratorDTO {
         this.isSkipRepaymentOnFirstDayofMonth = isSkipRepaymentOnFirstDayofMonth;
         this.isChangeEmiIfRepaymentDateSameAsDisbursementDateEnabled = isChangeEmiIfRepaymentDateSameAsDisbursementDateEnabled;
         this.isFirstRepaymentDateAllowedOnHoliday = isFirstRepaymentDateAllowedOnHoliday;
+        this.isInterestToBeAppropriatedEquallyWhenGreaterThanEMI = isInterestToBeAppropriatedEquallyWhenGreaterThanEMI;
     }
 
     public LoanScheduleGeneratorFactory getLoanScheduleFactory() {
@@ -144,10 +146,12 @@ public class ScheduleGeneratorDTO {
         return this.isChangeEmiIfRepaymentDateSameAsDisbursementDateEnabled;
     }
 
-	public boolean isFirstRepaymentDateAllowedOnHoliday() {
-		return isFirstRepaymentDateAllowedOnHoliday;
-	}
-    
-    
+    public boolean isFirstRepaymentDateAllowedOnHoliday() {
+        return isFirstRepaymentDateAllowedOnHoliday;
+    }
+
+    public boolean isInterestToBeAppropriatedEquallyWhenGreaterThanEMI() {
+        return isInterestToBeAppropriatedEquallyWhenGreaterThanEMI;
+    }
 
 }
