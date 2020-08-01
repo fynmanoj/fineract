@@ -127,4 +127,9 @@ public final class LoanScheduleModelDisbursementPeriod implements LoanScheduleMo
     public Set<LoanInterestRecalcualtionAdditionalDetails> getLoanCompoundingDetails() {
         return null;
     }
+
+    @Override
+    public boolean isFixedEMIorInterest() {
+        return false;
+    }
 }

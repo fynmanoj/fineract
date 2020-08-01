@@ -41,19 +41,22 @@ public final class LoanScheduleModelRepaymentPeriod implements LoanScheduleModel
     private Money penaltyChargesDue;
     private Money totalDue;
     private final boolean recalculatedInterestComponent;
+    private final boolean isFixedEMIorInterest;
     private final Set<LoanInterestRecalcualtionAdditionalDetails> loanCompoundingDetails = new HashSet<>();
 
     public static LoanScheduleModelRepaymentPeriod repayment(final int periodNumber, final LocalDate startDate,
             final LocalDate scheduledDueDate, final Money principalDue, final Money outstandingLoanBalance, final Money interestDue,
-            final Money feeChargesDue, final Money penaltyChargesDue, final Money totalDue, boolean recalculatedInterestComponent) {
+            final Money feeChargesDue, final Money penaltyChargesDue, final Money totalDue, boolean recalculatedInterestComponent,
+            final boolean isFixedEMIorInterest) {
 
         return new LoanScheduleModelRepaymentPeriod(periodNumber, startDate, scheduledDueDate, principalDue, outstandingLoanBalance,
-                interestDue, feeChargesDue, penaltyChargesDue, totalDue, recalculatedInterestComponent);
+                interestDue, feeChargesDue, penaltyChargesDue, totalDue, recalculatedInterestComponent, isFixedEMIorInterest);
     }
 
     public LoanScheduleModelRepaymentPeriod(final int periodNumber, final LocalDate fromDate, final LocalDate dueDate,
             final Money principalDue, final Money outstandingLoanBalance, final Money interestDue, final Money feeChargesDue,
-            final Money penaltyChargesDue, final Money totalDue, final boolean recalculatedInterestComponent) {
+            final Money penaltyChargesDue, final Money totalDue, final boolean recalculatedInterestComponent, 
+            final boolean isFixedEMIorInterest) {
         this.periodNumber = periodNumber;
         this.fromDate = fromDate;
         this.dueDate = dueDate;
@@ -64,6 +67,7 @@ public final class LoanScheduleModelRepaymentPeriod implements LoanScheduleModel
         this.penaltyChargesDue = penaltyChargesDue;
         this.totalDue = totalDue;
         this.recalculatedInterestComponent = recalculatedInterestComponent;
+        this.isFixedEMIorInterest = isFixedEMIorInterest;
     }
 
     @Override
@@ -161,4 +165,11 @@ public final class LoanScheduleModelRepaymentPeriod implements LoanScheduleModel
     public Set<LoanInterestRecalcualtionAdditionalDetails> getLoanCompoundingDetails() {
         return this.loanCompoundingDetails;
     }
+
+    @Override
+    public boolean isFixedEMIorInterest() {
+        return isFixedEMIorInterest;
+    }
+    
+    
 }
