@@ -91,6 +91,18 @@ public class LoanFixedPrincipalPercentageAmortizationTest {
         verifyLoanRepaymentScheduleForEqualPrincipalWithPrincipalGrace(loanSchedule);
     }
 
+    @Test
+    public void checkLoanCreateAndDisburseFlowWithFixedPrincipalPercentageAndFlatInterest() {
+        this.loanTransactionHelper = new LoanTransactionHelper(this.requestSpec, this.responseSpec);
+
+        final Integer clientID = ClientHelper.createClient(this.requestSpec, this.responseSpec);
+        ClientHelper.verifyClientCreatedOnServer(this.requestSpec, this.responseSpec, clientID);
+        final Integer loanProductID = createLoanProductWithFlatInterest(ACCOUNTING_NONE);
+        final Integer loanID = applyForLoanApplicationWithFlatInterest(clientID, loanProductID, null, null, "100000.00");
+        final ArrayList<HashMap> loanSchedule = this.loanTransactionHelper.getLoanRepaymentSchedule(this.requestSpec, this.responseSpec,
+                loanID);
+        verifyLoanRepaymentScheduleForEqualPrincipalAndFlatInterest(loanSchedule);
+    }
 
 
     private Integer createLoanProduct(final String accountingRule, final Account... accounts) {
@@ -220,4 +232,80 @@ public class LoanFixedPrincipalPercentageAmortizationTest {
         assertEquals(Float.parseFloat("815.34"), loanSchedule.get(19).get("interestOriginalDue"), "Checking for Interest Due for 19th Month - Last EMI");
 
     }
+
+
+    private Integer createLoanProductWithFlatInterest(final String accountingRule, final Account... accounts) {
+        LOG.info("------------------------------CREATING NEW LOAN PRODUCT ---------------------------------------");
+        LoanProductTestBuilder builder = new LoanProductTestBuilder() //
+                .withPrincipal("100000.00") //
+                .withNumberOfRepayments("13") //
+                .withRepaymentAfterEvery("1") //
+                .withRepaymentTypeAsMonth() //
+                .withinterestRatePerPeriod("1") //
+                .withInterestCalculationPeriodTypeAsDays()
+                .withInterestRateFrequencyTypeAsMonths() //
+                .withAmortizationTypeAsEqualPrincipalPayment() // This is required to fix the principal
+                .withPrinciplePercentagePerInstallment("5.00") // This fixes the principal at a fixed value till the second last EMI
+                .withInterestTypeAsFlat() //
+                .withAccounting(accountingRule, accounts);
+
+        final String loanProductJSON = builder.build(null);
+        return this.loanTransactionHelper.getLoanProductId(loanProductJSON);
+    }
+
+    private Integer applyForLoanApplicationWithFlatInterest(final Integer clientID, final Integer loanProductID, List<HashMap> charges,
+                                            final String savingsId, String principal) {
+        LOG.info("--------------------------------APPLYING FOR LOAN APPLICATION--------------------------------");
+        final String loanApplicationJSON = new LoanApplicationTestBuilder() //
+                .withPrincipal(principal) //
+                .withLoanTermFrequency("13") //
+                .withLoanTermFrequencyAsMonths() //
+                .withNumberOfRepayments("13") //
+                .withRepaymentEveryAfter("1") //
+                .withRepaymentFrequencyTypeAsMonths() //
+                .withInterestRatePerPeriod("2") //
+                .withAmortizationTypeAsEqualInstallments() //
+                .withAmortizationTypeAsEqualPrincipalPayments() // This is required to fix the principal
+                .withPrinciplePercentagePerInstallment("5.00") // This fixes the principal at a fixed value till the second last EMI
+                .withInterestTypeAsFlatBalance() //
+                .withInterestCalculationPeriodTypeAsDays() //
+                .withExpectedDisbursementDate("20 September 2011") //
+                .withSubmittedOnDate("20 September 2011") //
+                .withCharges(charges).build(clientID.toString(), loanProductID.toString(), savingsId);
+        return this.loanTransactionHelper.getLoanId(loanApplicationJSON);
+    }
+
+    private void verifyLoanRepaymentScheduleForEqualPrincipalAndFlatInterest(final ArrayList<HashMap> loanSchedule) {
+        LOG.info("--------------------VERIFYING THE PRINCIPAL DUES,INTEREST DUE AND DUE DATE--------------------------");
+
+        assertEquals(new ArrayList<>(Arrays.asList(2011, 10, 20)), loanSchedule.get(1).get("dueDate"),
+                "Checking for Due Date for 1st Month");
+        assertEquals(Float.parseFloat("5000"), loanSchedule.get(1).get("principalOriginalDue"),
+                "Checking for Principal Due for 1st Month");
+        assertEquals(Float.parseFloat("2002.95"), loanSchedule.get(1).get("interestOriginalDue"), "Checking for Interest Due for 1st Month");
+
+        assertEquals(new ArrayList<>(Arrays.asList(2011, 11, 20)), loanSchedule.get(2).get("dueDate"),
+                "Checking for Due Date for 2nd Month");
+        assertEquals(Float.parseFloat("5000"), loanSchedule.get(2).get("principalDue"), "Checking for Principal Due for 2nd Month");
+        assertEquals(Float.parseFloat("2002.95"), loanSchedule.get(2).get("interestOriginalDue"), "Checking for Interest Due for 2nd Month");
+
+        assertEquals(new ArrayList<>(Arrays.asList(2011, 12, 20)), loanSchedule.get(3).get("dueDate"),
+                "Checking for Due Date for 3rd Month");
+        assertEquals(Float.parseFloat("5000"), loanSchedule.get(3).get("principalDue"), "Checking for Principal Due for 3rd Month");
+        assertEquals(Float.parseFloat("2002.95"), loanSchedule.get(3).get("interestOriginalDue"), "Checking for Interest Due for 3rd Month");
+
+        assertEquals(new ArrayList<>(Arrays.asList(2012, 9, 20)), loanSchedule.get(12).get("dueDate"),
+                "Checking for Due Date for 12th Month");
+        assertEquals(Float.parseFloat("5000 "), loanSchedule.get(12).get("principalDue"), "Checking for Principal Due for 12th Month");
+        assertEquals(Float.parseFloat("2002.95"), loanSchedule.get(12).get("interestOriginalDue"), "Checking for Interest Due for 12th Month");
+
+
+        assertEquals(new ArrayList<>(Arrays.asList(2012, 10, 20)), loanSchedule.get(13).get("dueDate"),
+                "Checking for Due Date for 13th Month - Last EMI");
+        assertEquals(Float.parseFloat("40000"), loanSchedule.get(13).get("principalDue"), "Checking for Principal Due for 13th Month - Last EMI");
+        assertEquals(Float.parseFloat("2002.96"), loanSchedule.get(13).get("interestOriginalDue"), "Checking for Interest Due for 13th Month - Last EMI");
+
+    }
+
+
 }
