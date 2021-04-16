@@ -910,8 +910,14 @@ public final class LoanApplicationTerms {
         final int totalRepaymentsWithCapitalPayment = calculateNumberOfRepaymentsWithPrincipalPayment();
         Money principalPerPeriod = null;
         if (getFixedEmiAmount() == null) {
-            principalPerPeriod = this.principal.minus(totalPrincipalAccounted)
-                    .dividedBy(totalRepaymentsWithCapitalPayment, mc.getRoundingMode()).plus(this.adjustPrincipalForFlatLoans);
+            if (this.fixedPrincipalPercentagePerInstallment != null) {
+                principalPerPeriod = this.principal.minus(totalPrincipalAccounted)
+                        .percentageOf(this.fixedPrincipalPercentagePerInstallment, mc.getRoundingMode())
+                        .plus(this.adjustPrincipalForFlatLoans);
+            } else {
+                principalPerPeriod = this.principal.minus(totalPrincipalAccounted)
+                        .dividedBy(totalRepaymentsWithCapitalPayment, mc.getRoundingMode()).plus(this.adjustPrincipalForFlatLoans);
+            }
             if (isPrincipalGraceApplicableForThisPeriod(periodNumber)) {
                 principalPerPeriod = principalPerPeriod.zero();
             }
