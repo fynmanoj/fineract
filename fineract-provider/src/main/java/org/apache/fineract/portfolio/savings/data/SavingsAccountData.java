@@ -21,18 +21,30 @@ package org.apache.fineract.portfolio.savings.data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
+import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.infrastructure.dataqueries.data.DatatableData;
 import org.apache.fineract.organisation.monetary.data.CurrencyData;
 import org.apache.fineract.organisation.staff.data.StaffData;
 import org.apache.fineract.portfolio.charge.data.ChargeData;
+import org.apache.fineract.portfolio.client.data.ClientData;
+import org.apache.fineract.portfolio.group.data.GroupGeneralData;
+import org.apache.fineract.portfolio.savings.DepositAccountType;
+import org.apache.fineract.portfolio.savings.domain.SavingsAccountTransactionSummaryWrapper;
+import org.apache.fineract.portfolio.savings.domain.SavingsHelper;
 import org.apache.fineract.portfolio.tax.data.TaxGroupData;
 
 /**
@@ -79,7 +91,6 @@ public final class SavingsAccountData implements Serializable {
     private final Integer daysToDormancy;
     private final Integer daysToEscheat;
     private final BigDecimal savingsAmountOnHold;
-
     // associations
     private final SavingsAccountSummaryData summary;
     @SuppressWarnings("unused")
@@ -104,6 +115,7 @@ public final class SavingsAccountData implements Serializable {
     private final SavingsAccountChargeData annualFee;
     private final BigDecimal nominalAnnualInterestRateOverdraft;
     private final BigDecimal minOverdraftForInterestCalculation;
+    private List<SavingsAccountTransactionData> savingsAccountTransactionData = new ArrayList<>();
 
     private List<DatatableData> datatables = null;
 
@@ -112,7 +124,19 @@ public final class SavingsAccountData implements Serializable {
     private String locale;
     private String dateFormat;
     private transient Integer rowIndex;
+    private transient Date startInterestCalculationDate;
     private LocalDate submittedOnDate;
+    private transient SavingsAccountTransactionSummaryWrapper savingsAccountTransactionSummaryWrapper;
+    private transient SavingsHelper savingsHelper;
+
+    private transient SavingsAccountSummaryData savingsAccountSummaryData;
+    private transient Date activatedOnDate;
+    private transient LocalDate lockedInUntilDate;
+    private transient ClientData clientData;
+    private transient SavingsProductData savingsProductData;
+    private transient List<SavingsAccountTransactionData> newSavingsAccountTransactionData;
+    private transient GroupGeneralData groupGeneralData;
+    private transient Long officeId;
 
     public static SavingsAccountData importInstanceIndividual(Long clientId, Long productId, Long fieldOfficerId, LocalDate submittedOnDate,
             BigDecimal nominalAnnualInterestRate, EnumOptionData interestCompoundingPeriodTypeEnum,
@@ -207,12 +231,84 @@ public final class SavingsAccountData implements Serializable {
         }
     };
 
+    public void setNewSavingsAccountTransactionData(final SavingsAccountTransactionData savingsAccountTransactionData) {
+        this.newSavingsAccountTransactionData.add(savingsAccountTransactionData);
+    }
+
+    public List<SavingsAccountTransactionData> getNewSavingsAccountTransactionData() {
+        return this.newSavingsAccountTransactionData;
+    }
+
+    public void setSavingsAccountSummaryData(final SavingsAccountSummaryData savingsAccountSummaryData) {
+        this.savingsAccountSummaryData = savingsAccountSummaryData;
+    }
+
+    public void setSavingsProduct(final SavingsProductData savingsProductData) {
+        this.savingsProductData = savingsProductData;
+    }
+
+    public void setSavingsAccountTransactionData(final SavingsAccountTransactionData savingsAccountTransactionData) {
+        this.savingsAccountTransactionData.add(savingsAccountTransactionData);
+    }
+
+    public void setSubmittedOnDate(final LocalDate submittedOnDate) {
+        this.submittedOnDate = submittedOnDate;
+    }
+
+    public void setLockedInUntilDate(final LocalDate lockedInUntilDate) {
+        this.lockedInUntilDate = lockedInUntilDate;
+    }
+
+    public void setStartInterestCalculationDate(final Date startInterestCalculationDate) {
+        this.startInterestCalculationDate = startInterestCalculationDate;
+    }
+
+    public CurrencyData getCurrency() {
+        return this.currency;
+    }
+
+    public void setClientData(final ClientData clientData) {
+        this.clientData = clientData;
+    }
+
+    public void setGroupGeneralData(final GroupGeneralData groupGeneralData) {
+        this.groupGeneralData = groupGeneralData;
+    }
+
+    public void setOfficeId(final Long officeId) {
+        this.officeId = officeId;
+    }
+
+    public Long getOfficeId() {
+        return this.officeId;
+    }
+
+    // public void setActivatedOnDate(final Date activatedOnDate) {
+    // this.activatedOnDate = activatedOnDate;
+    // }
+
     public String getClientName() {
         return clientName;
     }
 
     public String getAccountNo() {
         return accountNo;
+    }
+
+    public BigDecimal getNominalAnnualInterestRate() {
+        return this.nominalAnnualInterestRate;
+    }
+
+    public BigDecimal getNominalAnnualInterestRateOverdraft() {
+        return this.nominalAnnualInterestRateOverdraft;
+    }
+
+    public boolean isAllowOverdraft() {
+        return this.allowOverdraft;
+    }
+
+    public TaxGroupData getTaxGroupData() {
+        return this.taxGroup;
     }
 
     public Long getClientId() {
@@ -229,6 +325,192 @@ public final class SavingsAccountData implements Serializable {
 
     public SavingsAccountApplicationTimelineData getTimeline() {
         return timeline;
+    }
+
+    public Long getId() {
+        return this.id;
+    }
+
+    public void updateTransactions(final SavingsAccountTransactionData savingsAccountTransactionData) {
+        this.savingsAccountTransactionData.add(savingsAccountTransactionData);
+    }
+
+    public boolean withHoldTax() {
+        return this.withHoldTax;
+    }
+
+    public DepositAccountType depositAccountType() {
+        return DepositAccountType.fromInt(this.depositType.getId().intValue());
+    }
+
+    public SavingsAccountSummaryData getSavingsAccountSummaryData() {
+        return this.savingsAccountSummaryData;
+    }
+
+    public List<SavingsAccountTransactionData> getSavingsAccountTransactionData() {
+        return this.savingsAccountTransactionData;
+    }
+
+    public void setHelpers(final SavingsAccountTransactionSummaryWrapper savingsAccountTransactionSummaryWrapper,
+            final SavingsHelper savingsHelper) {
+        this.savingsAccountTransactionSummaryWrapper = savingsAccountTransactionSummaryWrapper;
+        this.savingsHelper = savingsHelper;
+    }
+
+    public BigDecimal getMinBalanceForInterestCalculation() {
+        return this.minBalanceForInterestCalculation;
+    }
+
+    public BigDecimal getMinOverdraftForInterestCalculation() {
+        return this.minOverdraftForInterestCalculation;
+    }
+
+    public Integer getInterestPostingPeriodType() {
+        return this.interestPostingPeriodType.getId().intValue();
+    }
+
+    public Integer getDepositType() {
+        return this.depositType.getId().intValue();
+    }
+
+    public Integer getInterestCompoundingPeriodType() {
+        return this.interestCompoundingPeriodType.getId().intValue();
+    }
+
+    public Integer getInterestCalculationType() {
+        return this.interestCalculationType.getId().intValue();
+    }
+
+    public Integer getInterestCalculationDaysInYearType() {
+        return this.interestCalculationDaysInYearType.getId().intValue();
+    }
+
+    public LocalDate getLockedInUntilDate() {
+        return this.lockedInUntilDate;
+    }
+
+    public SavingsAccountTransactionData findLastTransaction(final LocalDate date) {
+
+        SavingsAccountTransactionData savingsTransaction = null;
+        List<SavingsAccountTransactionData> trans = getTransactions();
+        for (final SavingsAccountTransactionData transaction : trans) {
+            if (transaction.isNotReversed() && transaction.occursOn(date)) {
+                savingsTransaction = transaction;
+                break;
+            }
+        }
+
+        return savingsTransaction;
+    }
+
+    public List<SavingsAccountTransactionData> getTransactions() {
+        return this.savingsAccountTransactionData;
+    }
+
+    public LocalDate getStartInterestCalculationDate() {
+        LocalDate startInterestCalculationLocalDate = null;
+        if (this.startInterestCalculationDate != null) {
+            startInterestCalculationLocalDate = LocalDate.ofInstant(this.startInterestCalculationDate.toInstant(),
+                    DateUtils.getDateTimeZoneOfTenant());
+        } else {
+            startInterestCalculationLocalDate = getActivationLocalDate();
+        }
+        return startInterestCalculationLocalDate;
+    }
+
+    // public LocalDate getStartInterestCalcDate() {
+    // return LocalDate.ofInstant(this.startInterestCalculationDate.toInstant(), DateUtils.getDateTimeZoneOfTenant());
+    // }
+
+    public LocalDate getActivationLocalDate() {
+        LocalDate activationLocalDate = null;
+        if (this.timeline.getActivatedOnDate() != null) {
+            activationLocalDate = this.timeline.getActivatedOnDate();
+        }
+        return activationLocalDate;
+    }
+
+    public Integer getLockinPeriodFrequencyType() {
+        return this.lockinPeriodFrequencyType.getId().intValue();
+    }
+
+    public Collection<Long> findCurrentTransactionIdsWithPivotDateConfig() {
+
+        final Collection<Long> ids = new ArrayList<>();
+        List<SavingsAccountTransactionData> trans = this.savingsAccountTransactionData;
+        for (final SavingsAccountTransactionData transaction : trans) {
+            ids.add(transaction.getId());
+        }
+        return ids;
+    }
+
+    public Collection<Long> findCurrentReversedTransactionIdsWithPivotDateConfig() {
+        final Collection<Long> ids = new ArrayList<>();
+        List<SavingsAccountTransactionData> trans = this.savingsAccountTransactionData;
+        // time consuming
+        for (final SavingsAccountTransactionData transaction : trans) {
+            if (transaction.isReversed()) {
+                ids.add(transaction.getId());
+            }
+        }
+        return ids;
+    }
+
+    public Map<String, Object> deriveAccountingBridgeData(final CurrencyData currencyData, final Set<Long> existingTransactionIds,
+            final Set<Long> existingReversedTransactionIds, boolean isAccountTransfer, final boolean backdatedTxnsAllowedTill) {
+
+        final Map<String, Object> accountingBridgeData = new LinkedHashMap<>();
+        accountingBridgeData.put("savingsId", getId());
+        accountingBridgeData.put("savingsProductId", productId());
+        accountingBridgeData.put("currency", currencyData);
+        accountingBridgeData.put("officeId", officeId());
+        accountingBridgeData.put("cashBasedAccountingEnabled", isCashBasedAccountingEnabledOnSavingsProduct());
+        accountingBridgeData.put("accrualBasedAccountingEnabled", isAccrualBasedAccountingEnabledOnSavingsProduct());
+        accountingBridgeData.put("isAccountTransfer", isAccountTransfer);
+
+        final List<Map<String, Object>> newSavingsTransactions = new ArrayList<>();
+
+        List<SavingsAccountTransactionData> trans = getTransactions();
+
+        // if (backdatedTxnsAllowedTill) {
+        // trans = getSavingsAccountTransactionsWithPivotConfig();
+        // } else {
+        // trans = getTransactions();
+        // }
+
+        // Adding new transactions to the array
+        for (final SavingsAccountTransactionData transaction : trans) {
+            if (transaction.isReversed() && !existingReversedTransactionIds.contains(transaction.getId())) {
+                newSavingsTransactions.add(transaction.toMapData(currencyData, this.officeId()));
+            } else if (!existingTransactionIds.contains(transaction.getId())) {
+                newSavingsTransactions.add(transaction.toMapData(currencyData, this.officeId()));
+            }
+        }
+
+        accountingBridgeData.put("newSavingsTransactions", newSavingsTransactions);
+        return accountingBridgeData;
+    }
+
+    public Long officeId() {
+        Long officeId = null;
+        if (this.clientData != null) {
+            officeId = this.clientData.officeId();
+        } else if (this.groupId != null) {
+            officeId = this.groupGeneralData.officeId();
+        }
+        return officeId;
+    }
+
+    public List<SavingsAccountTransactionData> getSavingsAccountTransactionsWithPivotConfig() {
+        return this.transactions.stream().collect(Collectors.toList());
+    }
+
+    private Boolean isAccrualBasedAccountingEnabledOnSavingsProduct() {
+        return this.savingsProductData.isAccrualBasedAccountingEnabled();
+    }
+
+    private Boolean isCashBasedAccountingEnabledOnSavingsProduct() {
+        return this.savingsProductData.isCashBasedAccountingEnabled();
     }
 
     public static SavingsAccountData importInstanceGroup(Long groupId, Long productId, Long fieldOfficerId, LocalDate submittedOnDate,
@@ -765,6 +1047,14 @@ public final class SavingsAccountData implements Serializable {
         return this.currency;
     }
 
+    public SavingsAccountTransactionSummaryWrapper getSavingsAccountTransactionSummaryWrapper() {
+        return this.savingsAccountTransactionSummaryWrapper;
+    }
+
+    public SavingsHelper getSavingsHelper() {
+        return this.savingsHelper;
+    }
+
     @Override
     public boolean equals(final Object obj) {
 
@@ -792,5 +1082,9 @@ public final class SavingsAccountData implements Serializable {
 
     public void setDatatables(final List<DatatableData> datatables) {
         this.datatables = datatables;
+    }
+
+    public SavingsAccountSummaryData getSummary() {
+        return this.summary;
     }
 }

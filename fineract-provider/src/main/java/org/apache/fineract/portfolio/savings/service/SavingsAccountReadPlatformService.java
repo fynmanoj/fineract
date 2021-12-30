@@ -63,4 +63,13 @@ public interface SavingsAccountReadPlatformService {
     String retrieveAccountNumberByAccountId(Long accountId);
 
     List<Long> getAccountsIdsByStatusPaged(Integer status, int pageSize, Long maxSavingsIdInList);
+
+    // List<SavingsAccountData> retrieveSavingsDataForInterestPosting(Long accountId);
+    //
+    // List<SavingsAccountTransactionData> retrieveSavingsTransactionDataForInterestPosting(Long accountId, boolean
+    // backdatedTxnsAllowedTill,
+    // LocalDate interestPostedTillDate);
+
+    List<SavingsAccountData> retrieveAllSavingsDataForInterestPosting(boolean backdatedTxnsAllowedTill, final int pageSize,
+            final Integer status, final Long maxSavingsId);
 }

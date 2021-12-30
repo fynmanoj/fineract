@@ -378,6 +378,26 @@ public class SavingsAccount extends AbstractPersistableCustom {
                 withHoldTax);
     }
 
+    // public SavingsAccount(final String accountNo, final String externalId, final SavingsAccountStatusType status,
+    // final AccountType accountType,
+    // final LocalDate submittedOnDate, final AppUser submittedBy, final BigDecimal nominalAnnualInterestRate,
+    // final SavingsCompoundingInterestPeriodType interestCompoundingPeriodType,
+    // final SavingsPostingInterestPeriodType interestPostingPeriodType, final SavingsInterestCalculationType
+    // interestCalculationType,
+    // final SavingsInterestCalculationDaysInYearType interestCalculationDaysInYearType, final BigDecimal
+    // minRequiredOpeningBalance,
+    // final Integer lockinPeriodFrequency, final SavingsPeriodFrequencyType lockinPeriodFrequencyType,
+    // final boolean withdrawalFeeApplicableForTransfer, final Set<SavingsAccountCharge> savingsAccountCharges,
+    // final boolean allowOverdraft, final BigDecimal overdraftLimit, boolean withHoldTax) {
+    // this(client, group, product, fieldOfficer, accountNo, externalId, status, accountType, submittedOnDate,
+    // submittedBy,
+    // nominalAnnualInterestRate, interestCompoundingPeriodType, interestPostingPeriodType, interestCalculationType,
+    // interestCalculationDaysInYearType, minRequiredOpeningBalance, lockinPeriodFrequency, lockinPeriodFrequencyType,
+    // withdrawalFeeApplicableForTransfer, savingsAccountCharges, allowOverdraft, overdraftLimit, false, null, null,
+    // null,
+    // withHoldTax);
+    // }
+
     protected SavingsAccount(final Client client, final Group group, final SavingsProduct product, final Staff savingsOfficer,
             final String accountNo, final String externalId, final SavingsAccountStatusType status, final AccountType accountType,
             final LocalDate submittedOnDate, final AppUser submittedBy, final BigDecimal nominalAnnualInterestRate,
@@ -1119,8 +1139,16 @@ public class SavingsAccount extends AbstractPersistableCustom {
         return activationLocalDate;
     }
 
+    public AppUser getActivatedBy() {
+        return this.activatedBy;
+    }
+
     public LocalDate getWithdrawnOnDate() {
         return withdrawnOnDate == null ? null : LocalDate.ofInstant(withdrawnOnDate.toInstant(), DateUtils.getDateTimeZoneOfTenant());
+    }
+
+    public AppUser getWithdrawnBy() {
+        return this.withdrawnBy;
     }
 
     // startInterestCalculationDate is set during migration so that there is no
@@ -1950,6 +1978,10 @@ public class SavingsAccount extends AbstractPersistableCustom {
         return gsim;
     }
 
+    public Long getSavingsProductId() {
+        return this.savingsProduct().getId();
+    }
+
     public void setGsim(GroupSavingsIndividualMonitoring gsim) {
         this.gsim = gsim;
     }
@@ -2063,6 +2095,10 @@ public class SavingsAccount extends AbstractPersistableCustom {
         return rejectedOnDate == null ? null : LocalDate.ofInstant(rejectedOnDate.toInstant(), DateUtils.getDateTimeZoneOfTenant());
     }
 
+    public AppUser getRejectedBy() {
+        return this.rejectedBy;
+    }
+
     public void removeSavingsOfficer(final LocalDate unassignDate) {
 
         final SavingsOfficerAssignmentHistory latestHistoryRecord = findLatestIncompleteHistoryRecord();
@@ -2167,6 +2203,18 @@ public class SavingsAccount extends AbstractPersistableCustom {
 
     public BigDecimal getNominalAnnualInterestRate() {
         return this.nominalAnnualInterestRate;
+    }
+
+    public Integer getInterestCompoundingPeriodType() {
+        return this.interestCompoundingPeriodType;
+    }
+
+    public Integer getInterestPostingPeriodType() {
+        return this.interestPostingPeriodType;
+    }
+
+    public Integer getInterestCalculationType() {
+        return this.interestCalculationType;
     }
 
     public BigDecimal getNominalAnnualInterestRateOverdraft() {
@@ -2775,6 +2823,10 @@ public class SavingsAccount extends AbstractPersistableCustom {
         return this.closedOnDate == null ? null : LocalDate.ofInstant(this.closedOnDate.toInstant(), DateUtils.getDateTimeZoneOfTenant());
     }
 
+    public AppUser getClosedBy() {
+        return this.closedBy;
+    }
+
     public SavingsAccountSummary getSummary() {
         return this.summary;
     }
@@ -3211,6 +3263,14 @@ public class SavingsAccount extends AbstractPersistableCustom {
                     savingsPostingInterestPeriodType.name(), savingsCompoundingInterestPeriodType.name());
 
         }
+    }
+
+    public AppUser getSubmittedBy() {
+        return this.submittedBy;
+    }
+
+    public AppUser getApprovedBy() {
+        return this.approvedBy;
     }
 
     public boolean allowDeposit() {
@@ -3664,5 +3724,69 @@ public class SavingsAccount extends AbstractPersistableCustom {
 
     private boolean isOverdraft() {
         return allowOverdraft;
+    }
+
+    public Long getGroupId() {
+        return this.groupId();
+    }
+
+    public Integer getInterestCalculationDaysInYearType() {
+        return this.interestCalculationDaysInYearType;
+    }
+
+    public BigDecimal getMinRequiredOpeningBalance() {
+        return this.minRequiredOpeningBalance;
+    }
+
+    public Integer getLockinPeriodFrequency() {
+        return this.lockinPeriodFrequency;
+    }
+
+    public Integer getLockinPeriodFrequencyType() {
+        return this.lockinPeriodFrequencyType;
+    }
+
+    public boolean isWithdrawalFeeForTransfer() {
+        return this.withdrawalFeeApplicableForTransfer;
+    }
+
+    public boolean isAllowOverdraft() {
+        return this.allowOverdraft;
+    }
+
+    public BigDecimal getOverdraftLimit() {
+        return this.overdraftLimit;
+    }
+
+    public BigDecimal getMinOverdraftForInterestCalculation() {
+        return this.minOverdraftForInterestCalculation;
+    }
+
+    public Date getLockedInUntilDate() {
+        return this.lockedInUntilDate;
+    }
+
+    public Integer getDepositType() {
+        return this.depositType;
+    }
+
+    public BigDecimal getMinRequiredBalance() {
+        return this.minRequiredBalance;
+    }
+
+    public boolean isEnforceMinRequiredBalance() {
+        return this.enforceMinRequiredBalance;
+    }
+
+    public BigDecimal getMinBalanceForInterestCalculation() {
+        return this.minBalanceForInterestCalculation;
+    }
+
+    public int getVersion() {
+        return this.version;
+    }
+
+    public boolean isWithHoldTax() {
+        return this.withHoldTax;
     }
 }

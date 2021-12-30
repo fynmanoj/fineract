@@ -55,6 +55,7 @@ import org.apache.fineract.infrastructure.core.exception.GeneralPlatformDomainRu
 import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.exception.PlatformServiceUnavailableException;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
+import org.apache.fineract.infrastructure.core.service.RoutingDataSource;
 import org.apache.fineract.infrastructure.dataqueries.data.EntityTables;
 import org.apache.fineract.infrastructure.dataqueries.data.StatusEnum;
 import org.apache.fineract.infrastructure.dataqueries.service.EntityDatatableChecksWritePlatformService;
@@ -93,8 +94,10 @@ import org.apache.fineract.portfolio.savings.SavingsAccountTransactionType;
 import org.apache.fineract.portfolio.savings.SavingsApiConstants;
 import org.apache.fineract.portfolio.savings.SavingsTransactionBooleanValues;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountChargeDataValidator;
+import org.apache.fineract.portfolio.savings.data.SavingsAccountData;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountDataValidator;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionDTO;
+import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionData;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionDataValidator;
 import org.apache.fineract.portfolio.savings.domain.DepositAccountOnHoldTransaction;
 import org.apache.fineract.portfolio.savings.domain.DepositAccountOnHoldTransactionRepository;
@@ -123,6 +126,7 @@ import org.apache.fineract.useradministration.domain.AppUserRepositoryWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -156,6 +160,8 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
     private final StandingInstructionRepository standingInstructionRepository;
     private final BusinessEventNotifierService businessEventNotifierService;
     private final GSIMRepositoy gsimRepository;
+    private final JdbcTemplate jdbcTemplate;
+    private final SavingsAccountInterestPostingService savingsAccountInterestPostingService;
 
     @Autowired
     public SavingsAccountWritePlatformServiceJpaRepositoryImpl(final PlatformSecurityContext context,
@@ -177,7 +183,8 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
             final DepositAccountOnHoldTransactionRepository depositAccountOnHoldTransactionRepository,
             final EntityDatatableChecksWritePlatformService entityDatatableChecksWritePlatformService,
             final AppUserRepositoryWrapper appuserRepository, final StandingInstructionRepository standingInstructionRepository,
-            final BusinessEventNotifierService businessEventNotifierService, final GSIMRepositoy gsimRepository) {
+            final BusinessEventNotifierService businessEventNotifierService, final GSIMRepositoy gsimRepository,
+            final RoutingDataSource dataSource, final SavingsAccountInterestPostingService savingsAccountInterestPostingService) {
         this.context = context;
         this.savingAccountRepositoryWrapper = savingAccountRepositoryWrapper;
         this.savingsAccountTransactionRepository = savingsAccountTransactionRepository;
@@ -204,6 +211,8 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
         this.standingInstructionRepository = standingInstructionRepository;
         this.businessEventNotifierService = businessEventNotifierService;
         this.gsimRepository = gsimRepository;
+        this.jdbcTemplate = new JdbcTemplate(dataSource);
+        this.savingsAccountInterestPostingService = savingsAccountInterestPostingService;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(SavingsAccountWritePlatformServiceJpaRepositoryImpl.class);
@@ -582,6 +591,7 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
         final boolean isSavingsInterestPostingAtCurrentPeriodEnd = this.configurationDomainService
                 .isSavingsInterestPostingAtCurrentPeriodEnd();
         final Integer financialYearBeginningMonth = this.configurationDomainService.retrieveFinancialYearBeginningMonth();
+
         if (account.getNominalAnnualInterestRate().compareTo(BigDecimal.ZERO) > 0
                 || (account.allowOverdraft() && account.getNominalAnnualInterestRateOverdraft().compareTo(BigDecimal.ZERO) > 0)) {
             final Set<Long> existingTransactionIds = new HashSet<>();
@@ -605,9 +615,22 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
                     postInterestOnDate, backdatedTxnsAllowedTill);
 
             if (!backdatedTxnsAllowedTill) {
+                // String transactionSql = "INSERT INTO m_savings_transaction
+                // (savings_account_id,office_id,is_reversed,transaction_type_enum,transaction_date,amount,"
+                // + "balance_end_date_derived,balance_number_of_days_derived, running_balance_derived,
+                // cumulative_balance_derived, created_date, appuser_id, is_manual, is_loan_disbursement) VALUES (?, ?,
+                // 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)";
                 List<SavingsAccountTransaction> transactions = account.getTransactions();
                 for (SavingsAccountTransaction accountTransaction : transactions) {
                     if (accountTransaction.getId() == null) {
+                        // this.jdbcTemplate.update(transactionSql, accountTransaction.getSavingsAccount().getId(),
+                        // accountTransaction.getOfficeId(), SavingsAccountTransactionType.INTEREST_POSTING.getValue(),
+                        // accountTransaction.getDateOf(), accountTransaction.getAmount(),
+                        // accountTransaction.getBalanceEndDate(),
+                        // accountTransaction.getBalanceNumberOfDays(),
+                        // accountTransaction.getRunningBalance(accountTransaction.getSavingsAccount().getCurrency()),
+                        // accountTransaction.getCumulativeBalance(), accountTransaction.getCreatedDate(),
+                        // accountTransaction.getAppUserId(), accountTransaction.getIsManualTransaction());
                         this.savingsAccountTransactionRepository.save(accountTransaction);
                     }
                 }
@@ -617,11 +640,163 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
                 this.savingsAccountTransactionRepository.saveAll(account.getSavingsAccountTransactionsWithPivotConfig());
             }
 
+            // String accountSql = "INSERT INTO m_savings
+            // (account_no,external_id,client_id,group_id,gsim_id,product_id,field_officer_id,status_enum,sub_status_enum,account_type_enum,submittedon_date,submittedon_userid,approvedon_userid,rejectedon_date,rejectedon_userid,withdrawnon_date,withdrawnon_userid,activatedon_date,activatedon_userid,"
+            // +
+            // "closedon_date,closedon_userid,currency_code,currency_digits,currency_multiplesof,nominal_annual_interest_rate,interest_compounding_period_enum,interest_posting_period_enum,interest_calculation_type_enum,interest_calculation_days_in_year_type_enum,min_required_opening_balance,lockin_period_frequency,lockin_period_frequency_enum,"
+            // +
+            // "withdrawal_fee_for_transfer,allow_overdraft,overdraft_limit,nominal_annual_interest_rate_overdraft,min_overdraft_for_interest_calculation,lockedin_until_date_derived,"
+            // +
+            // "deposit_type_enum,total_deposits_derived,total_withdrawals_derived,total_withdrawal_fees_derived,total_fees_charge_derived,total_penalty_charge_derived,total_annual_fees_derived,"
+            // +
+            // "total_interest_earned_derived,total_interest_posted_derived,total_overdraft_interest_derived,total_withhold_tax_derived,account_balance_derived,min_required_balance,"
+            // +
+            // "enforce_min_required_balance,min_balance_for_interest_calculation,start_interest_calculation_date,on_hold_funds_derived,version,withhold_tax,tax_group_id,last_interest_calculation_date,"
+            // + "total_savings_amount_on_hold,interest_posted_till_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            // ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            // ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            //
+            // this.jdbcTemplate.update(accountSql, account.getAccountNumber(), account.getExternalId(),
+            // account.getClient().getId(),
+            // account.getGroupId(), account.getGsim().getId(), account.getSavingsProductId(),
+            // account.getSavingsOfficer().getId(),
+            // account.getStatus().getValue(), account.getSubStatus(), account.getAccountType().getValue(),
+            // account.getSubmittedOnDate(), account.getSubmittedBy().getId(), account.getApprovedBy().getId(),
+            // account.getRejectedOnDate(), account.getRejectedBy().getId(), account.getWithdrawnOnDate(),
+            // account.getWithdrawnBy().getId(), account.getActivationLocalDate(), account.getActivatedBy().getId(),
+            // account.getClosedOnDate(), account.getClosedBy(), account.getCurrency().getCode(),
+            // account.getCurrency().getDigitsAfterDecimal(), account.getCurrency().getCurrencyInMultiplesOf(),
+            // account.getNominalAnnualInterestRate(), account.getInterestCompoundingPeriodType(),
+            // account.getInterestPostingPeriodType(), account.getInterestCalculationType(),
+            // account.getInterestCalculationDaysInYearType(), account.getMinRequiredOpeningBalance(),
+            // account.getLockinPeriodFrequency(), account.getLockinPeriodFrequencyType(),
+            // account.isWithdrawalFeeForTransfer(),
+            // account.isAllowOverdraft(), account.getOverdraftLimit(), account.getNominalAnnualInterestRateOverdraft(),
+            // account.getMinOverdraftForInterestCalculation(), account.getLockedInUntilDate(),
+            // account.getDepositType(),
+            // account.getSummary().getTotalDeposits(), account.getSummary().getTotalWithdrawals(),
+            // account.getSummary().getTotalWithdrawalFees(), account.getSummary().getTotalFeeCharge(),
+            // account.getSummary().getTotalPenaltyCharge(), account.getSummary().getTotalAnnualFees(),
+            // account.getSummary().getTotalInterestEarned(), account.getSummary().getTotalInterestPosted(),
+            // account.getSummary().getTotalOverdraftInterestDerived(), account.getSummary().getTotalWithholdTax(),
+            // account.getSummary().getAccountBalance(), account.getMinRequiredBalance(),
+            // account.isEnforceMinRequiredBalance(),
+            // account.getMinBalanceForInterestCalculation(), account.getStartInterestCalculationDate(),
+            // account.getOnHoldFunds(),
+            // account.getVersion(), account.isWithHoldTax(), account.getTaxGroup().getId(),
+            // account.getSummary().getLastInterestCalculationDate(), account.getSavingsHoldAmount(),
+            // account.getSummary().getInterestPostedTillDate());
+
             this.savingAccountRepositoryWrapper.saveAndFlush(account);
 
             postJournalEntries(account, existingTransactionIds, existingReversedTransactionIds, backdatedTxnsAllowedTill);
         }
     }
+
+    @Transactional
+    @Override
+    public SavingsAccountData postInterest(SavingsAccountData savingsAccountData, final boolean postInterestAs,
+            final LocalDate transactionDate, final boolean backdatedTxnsAllowedTill) {
+
+        final boolean isSavingsInterestPostingAtCurrentPeriodEnd = this.configurationDomainService
+                .isSavingsInterestPostingAtCurrentPeriodEnd();
+        final Integer financialYearBeginningMonth = this.configurationDomainService.retrieveFinancialYearBeginningMonth();
+
+        if (savingsAccountData.getNominalAnnualInterestRate().compareTo(BigDecimal.ZERO) > 0 || (savingsAccountData.isAllowOverdraft()
+                && savingsAccountData.getNominalAnnualInterestRateOverdraft().compareTo(BigDecimal.ZERO) > 0)) {
+            final Set<Long> existingTransactionIds = new HashSet<>();
+            final Set<Long> existingReversedTransactionIds = new HashSet<>();
+            updateExistingTransactionsDetails(savingsAccountData, existingTransactionIds, existingReversedTransactionIds);
+
+            final LocalDate today = DateUtils.getLocalDateOfTenant();
+            final MathContext mc = new MathContext(10, MoneyHelper.getRoundingMode());
+            boolean isInterestTransfer = false;
+            LocalDate postInterestOnDate = null;
+            if (postInterestAs) {
+                postInterestOnDate = transactionDate;
+            }
+
+            savingsAccountData = this.savingsAccountInterestPostingService.postInterest(mc, today, isInterestTransfer,
+                    isSavingsInterestPostingAtCurrentPeriodEnd, financialYearBeginningMonth, postInterestOnDate, backdatedTxnsAllowedTill,
+                    savingsAccountData);
+
+            if (!backdatedTxnsAllowedTill) {
+                List<SavingsAccountTransactionData> transactions = savingsAccountData.getTransactions();
+                for (SavingsAccountTransactionData accountTransaction : transactions) {
+                    if (accountTransaction.getId() == null) {
+                        savingsAccountData.setNewSavingsAccountTransactionData(accountTransaction);
+                    }
+                }
+            }
+            postJournalEntries(savingsAccountData, existingTransactionIds, existingReversedTransactionIds, backdatedTxnsAllowedTill);
+        }
+        // batchUpdate(savingsAccountData);
+        return savingsAccountData;
+    }
+
+    // private void batchUpdate(final SavingsAccountData savingsAccountData) throws DataAccessException {
+    // String queryForSavingsUpdate = batchQueryForSavingsSummaryUpdate();
+    // String queryForTransactionInsertion = batchQueryForTransactionInsertion();
+    // List<Object[]> paramsForTransactionInsertion = new ArrayList<>();
+    //
+    // SavingsAccountSummaryData savingsAccountSummaryData = savingsAccountData.getSummary();
+    // Object[] paramsForSavingsSummary = new Object[] { savingsAccountSummaryData.getTotalDeposits(),
+    // savingsAccountSummaryData.getTotalWithdrawals(), savingsAccountSummaryData.getTotalInterestEarned(),
+    // savingsAccountSummaryData.getTotalInterestPosted(), savingsAccountSummaryData.getTotalWithdrawalFees(),
+    // savingsAccountSummaryData.getTotalFeeCharge(), savingsAccountSummaryData.getTotalPenaltyCharge(),
+    // savingsAccountSummaryData.getTotalAnnualFees(), savingsAccountSummaryData.getAvailableBalance(),
+    // savingsAccountSummaryData.getTotalOverdraftInterestDerived(), savingsAccountSummaryData.getTotalWithholdTax(),
+    // java.sql.Date.from(savingsAccountSummaryData.getLastInterestCalculationDate()
+    // .atStartOfDay(DateUtils.getDateTimeZoneOfTenant()).toInstant()),
+    // java.sql.Date.from(savingsAccountSummaryData.getInterestPostedTillDate().atStartOfDay(DateUtils.getDateTimeZoneOfTenant())
+    // .toInstant()),
+    // savingsAccountData.getId() };
+    // List<SavingsAccountTransactionData> savingsAccountTransactionDataList =
+    // savingsAccountData.getSavingsAccountTransactionData();
+    // for (SavingsAccountTransactionData savingsAccountTransactionData : savingsAccountTransactionDataList) {
+    // if (savingsAccountTransactionData.getId() == null) {
+    // java.util.Date balanceEndDate = null;
+    // if (savingsAccountTransactionData.getBalanceEndDate() != null) {
+    // balanceEndDate = java.sql.Date.from(savingsAccountTransactionData.getBalanceEndDate()
+    // .atStartOfDay(DateUtils.getDateTimeZoneOfTenant()).toInstant());
+    // }
+    // paramsForTransactionInsertion.add(new Object[] { savingsAccountData.getId(), savingsAccountData.getOfficeId(),
+    // savingsAccountTransactionData.getTransactionType().getId(),
+    // java.sql.Date.from(savingsAccountTransactionData.getTransactionDate()
+    // .atStartOfDay(DateUtils.getDateTimeZoneOfTenant()).toInstant()),
+    // savingsAccountTransactionData.getAmount(), balanceEndDate,
+    // savingsAccountTransactionData.getBalanceNumberOfDays(),
+    // savingsAccountTransactionData.getRunningBalance(), savingsAccountTransactionData.getCumulativeBalance(),
+    // savingsAccountTransactionData.getSubmittedOnDate(), Integer.valueOf(1),
+    // savingsAccountTransactionData.isManualTransaction() });
+    // }
+    // }
+    // this.jdbcTemplate.update(queryForSavingsUpdate, paramsForSavingsSummary);
+    // // this.jdbcTemplate.batchUpdate(queryForSavingsUpdate, paramsForSavingsSummary);
+    // this.jdbcTemplate.batchUpdate(queryForTransactionInsertion, paramsForTransactionInsertion);
+    // }
+
+    // private String batchQueryForTransactionInsertion() {
+    // StringBuilder query = new StringBuilder(100);
+    // query.append("INSERT INTO m_savings_account_transaction (savings_account_id, office_id, is_reversed,");
+    // query.append("transaction_type_enum, transaction_date, amount, balance_end_date_derived,");
+    // query.append("balance_number_of_days_derived, running_balance_derived, cumulative_balance_derived,");
+    // query.append("created_date, appuser_id, is_manual, is_loan_disbursement) VALUES ");
+    // query.append("(?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+    // return query.toString();
+    //
+    // }
+    //
+    // private String batchQueryForSavingsSummaryUpdate() {
+    // StringBuilder query = new StringBuilder(100);
+    // query.append("update m_savings_account set total_deposits_derived=?, total_withdrawals_derived=?, ");
+    // query.append("total_interest_earned_derived=?, total_interest_posted_derived=?, total_withdrawal_fees_derived=?,
+    // ");
+    // query.append("total_fees_charge_derived=?, total_penalty_charge_derived=?, total_annual_fees_derived=?, ");
+    // query.append("account_balance_derived=?, total_overdraft_interest_derived=?, total_withhold_tax_derived=?, ");
+    // query.append("last_interest_calculation_date=?, interest_posted_till_date=? where id=?");
+    // return query.toString();
+    // }
 
     @Override
     public CommandProcessingResult undoTransaction(final Long savingsId, final Long transactionId,
@@ -630,7 +805,6 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
         final boolean isSavingsInterestPostingAtCurrentPeriodEnd = this.configurationDomainService
                 .isSavingsInterestPostingAtCurrentPeriodEnd();
         final Integer financialYearBeginningMonth = this.configurationDomainService.retrieveFinancialYearBeginningMonth();
-
         final SavingsAccount account = this.savingAccountAssembler.assembleFrom(savingsId, false);
         final Set<Long> existingTransactionIds = new HashSet<>();
         final Set<Long> existingReversedTransactionIds = new HashSet<>();
@@ -1394,7 +1568,20 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
         existingReversedTransactionIds.addAll(account.findExistingReversedTransactionIds());
     }
 
+    private void updateExistingTransactionsDetails(SavingsAccountData account, Set<Long> existingTransactionIds,
+            Set<Long> existingReversedTransactionIds) {
+        existingTransactionIds.addAll(account.findCurrentTransactionIdsWithPivotDateConfig());
+        existingReversedTransactionIds.addAll(account.findCurrentReversedTransactionIdsWithPivotDateConfig());
+    }
+
     private void updateSavingsTransactionsDetails(SavingsAccount account, Set<Long> existingTransactionIds,
+            Set<Long> existingReversedTransactionIds) {
+        existingTransactionIds.addAll(account.findCurrentTransactionIdsWithPivotDateConfig());
+        existingReversedTransactionIds.addAll(account.findCurrentReversedTransactionIdsWithPivotDateConfig());
+    }
+
+    @SuppressWarnings("unused")
+    private void updateSavingsTransactionsDetails(SavingsAccountData account, Set<Long> existingTransactionIds,
             Set<Long> existingReversedTransactionIds) {
         existingTransactionIds.addAll(account.findCurrentTransactionIdsWithPivotDateConfig());
         existingReversedTransactionIds.addAll(account.findCurrentReversedTransactionIdsWithPivotDateConfig());
@@ -1404,6 +1591,17 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
             final Set<Long> existingReversedTransactionIds, final boolean backdatedTxnsAllowedTill) {
 
         final MonetaryCurrency currency = savingsAccount.getCurrency();
+        final ApplicationCurrency applicationCurrency = this.applicationCurrencyRepositoryWrapper.findOneWithNotFoundDetection(currency);
+        boolean isAccountTransfer = false;
+        final Map<String, Object> accountingBridgeData = savingsAccount.deriveAccountingBridgeData(applicationCurrency.toData(),
+                existingTransactionIds, existingReversedTransactionIds, isAccountTransfer, backdatedTxnsAllowedTill);
+        this.journalEntryWritePlatformService.createJournalEntriesForSavings(accountingBridgeData);
+    }
+
+    private void postJournalEntries(final SavingsAccountData savingsAccount, final Set<Long> existingTransactionIds,
+            final Set<Long> existingReversedTransactionIds, final boolean backdatedTxnsAllowedTill) {
+
+        final MonetaryCurrency currency = MonetaryCurrency.fromCurrencyData(savingsAccount.currency());
         final ApplicationCurrency applicationCurrency = this.applicationCurrencyRepositoryWrapper.findOneWithNotFoundDetection(currency);
         boolean isAccountTransfer = false;
         final Map<String, Object> accountingBridgeData = savingsAccount.deriveAccountingBridgeData(applicationCurrency.toData(),
