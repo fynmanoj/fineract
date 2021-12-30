@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
+import org.apache.fineract.infrastructure.core.domain.FineractPlatformTenant;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.infrastructure.core.service.RoutingDataSource;
 import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
@@ -147,13 +148,32 @@ public class SavingsSchedularServiceImpl implements SavingsSchedularService {
         }
         boolean lastBatch = false;
         int loopCount = size / batchSize + 1;
-
+        FineractPlatformTenant tenant = ThreadLocalContextUtil.getTenant();
+        Long finalMaxSavingsIdInList = maxSavingsIdInList;
+        Callable<Void> dbFetchTask = () -> {
+            ThreadLocalContextUtil.setTenant(tenant);
+            Long maxId = finalMaxSavingsIdInList;
+            if (!queue.isEmpty()) {
+                maxId = Math.max(finalMaxSavingsIdInList, queue.element().get(queue.element().size() - 1).getId());
+            }
+            while (queue.size() <= queueSize) {
+                LOG.info("Fetching parallelly from another thread.....................");
+                List<SavingsAccountData> savingsAccounts1 = Collections.synchronizedList(this.savingAccountReadPlatformService
+                        .retrieveAllSavingsDataForInterestPosting(backdatedTxnsAllowedTill, pageSize, ACTIVE.getValue(), maxId));
+                if (savingsAccounts1 == null || savingsAccounts1.isEmpty()) break;
+                maxId = savingsAccounts1.get(savingsAccounts1.size() - 1).getId();
+                LOG.info("Add to the Queue");
+                queue.add(savingsAccounts1);
+            }
+            return null;
+        };
+        posters.add(dbFetchTask);
         for (long i = 0; i < loopCount; i++) {
             List<SavingsAccountData> subList = safeSubList(savingsAccounts, fromIndex, toIndex);
             SavingsSchedularInterestPoster poster = (SavingsSchedularInterestPoster) this.applicationContext
                     .getBean("savingsSchedularInterestPoster");
             poster.setSavings(subList);
-            poster.setTenant(ThreadLocalContextUtil.getTenant());
+            poster.setTenant(tenant);
             poster.setSavingsAccountWritePlatformService(savingsAccountWritePlatformService);
             poster.setSavingsAccountRepository(savingsAccountRepository);
             poster.setSavingAccountAssembler(savingAccountAssembler);
@@ -178,12 +198,17 @@ public class SavingsSchedularServiceImpl implements SavingsSchedularService {
 
         try {
             List<Future<Void>> responses = executorService.invokeAll(posters);
+            Long maxId = maxSavingsIdInList;
+            if (!queue.isEmpty()) {
+                maxId = Math.max(maxSavingsIdInList, queue.element().get(queue.element().size() - 1).getId());
+            }
+            LOG.info("Queue Should be full ...................... {0}", queue.size());
             while (queue.size() <= queueSize) {
-                LOG.info("Fetching while threads are running!");
-                savingsAccounts = Collections.synchronizedList(
-                        this.savingAccountReadPlatformService.retrieveAllSavingsDataForInterestPosting(backdatedTxnsAllowedTill, pageSize,
-                                ACTIVE.getValue(), maxSavingsIdInList));
-                if (savingsAccounts == null) break;
+                LOG.info("Fetching while threads are running!..:: this is not supposed to run........");
+                savingsAccounts = Collections.synchronizedList(this.savingAccountReadPlatformService
+                        .retrieveAllSavingsDataForInterestPosting(backdatedTxnsAllowedTill, pageSize, ACTIVE.getValue(), maxId));
+                if (savingsAccounts == null || savingsAccounts.isEmpty()) break;
+                maxId = savingsAccounts.get(savingsAccounts.size() - 1).getId();
                 LOG.info("Add to the Queue");
                 queue.add(savingsAccounts);
             }
@@ -214,9 +239,11 @@ public class SavingsSchedularServiceImpl implements SavingsSchedularService {
     // checks the execution of task by each thread in the executor service
     private void checkCompletion(List<Future<Void>> responses) {
         try {
+            LOG.info("check result start ..... {0}", DateUtils.getLocalDateTimeOfTenant());
             for (Future f : responses) {
                 f.get();
             }
+            LOG.info("check result End ..... {0}", DateUtils.getLocalDateTimeOfTenant());
             boolean allThreadsExecuted = false;
             int noOfThreadsExecuted = 0;
             for (Future<Void> future : responses) {
