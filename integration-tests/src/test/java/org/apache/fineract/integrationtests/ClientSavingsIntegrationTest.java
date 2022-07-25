@@ -2989,6 +2989,67 @@ public class ClientSavingsIntegrationTest {
         assertEquals("error.msg.savings.transaction.is.not.allowed", error.get(0).get(CommonConstants.RESPONSE_ERROR_MESSAGE_CODE));
     }
 
+    @Test
+    public void testReversalEntriesAfterReversingTransactionWithReversalConfigOn() {
+        this.savingsAccountHelper = new SavingsAccountHelper(this.requestSpec, this.responseSpec);
+        this.savingsProductHelper = new SavingsProductHelper();
+        this.scheduleJobHelper = new SchedulerJobHelper(requestSpec);
+        GlobalConfigurationHelper.updateEnabledFlagForGlobalConfiguration(this.requestSpec, this.responseSpec, "46", true);
+        configurationForBackdatedTransaction();
+        LocalDate transactionDate = LocalDate.now(Utils.getZoneIdOfTenant()).minusDays(5);
+        final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMMM yyyy");
+        String startDate = formatter.format(transactionDate);
+        final String jobName = "Post Interest For Savings";
+        final Integer clientID = ClientHelper.createClient(this.requestSpec, this.responseSpec, startDate);
+        Assertions.assertNotNull(clientID);
+
+        final Integer savingsId = createSavingsAccountDailyPostingOverdraft(clientID, startDate);
+        Integer withdrawalTrx = (Integer) this.savingsAccountHelper.withdrawalFromSavingsAccount(savingsId, "100", startDate,
+                CommonConstants.RESPONSE_RESOURCE_ID);
+        this.scheduleJobHelper.executeAndAwaitJob(jobName);
+        this.savingsAccountHelper.reverseSavingsAccountTransaction(savingsId, withdrawalTrx);
+        List<HashMap> transactions = this.savingsAccountHelper.getSavingsTransactions(savingsId);
+        boolean reversalFlag = false;
+        for (int i = 0; i < transactions.size(); i++) {
+            boolean isReversal = (boolean) transactions.get(i).get("isReversal");
+            if (isReversal) {
+                reversalFlag = true;
+                break;
+            }
+        }
+        Assertions.assertTrue(reversalFlag);
+    }
+
+    @Test
+    public void testReversalEntriesAfterReversingTransactionWithReversalConfigOff() {
+        this.savingsAccountHelper = new SavingsAccountHelper(this.requestSpec, this.responseSpec);
+        this.savingsProductHelper = new SavingsProductHelper();
+        this.scheduleJobHelper = new SchedulerJobHelper(requestSpec);
+        configurationForBackdatedTransaction();
+        LocalDate transactionDate = LocalDate.now(Utils.getZoneIdOfTenant()).minusDays(5);
+        final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMMM yyyy");
+        String startDate = formatter.format(transactionDate);
+        final String jobName = "Post Interest For Savings";
+        final Integer clientID = ClientHelper.createClient(this.requestSpec, this.responseSpec, startDate);
+        Assertions.assertNotNull(clientID);
+
+        final Integer savingsId = createSavingsAccountDailyPostingOverdraft(clientID, startDate);
+        Integer withdrawalTrx = (Integer) this.savingsAccountHelper.withdrawalFromSavingsAccount(savingsId, "100", startDate,
+                CommonConstants.RESPONSE_RESOURCE_ID);
+        this.scheduleJobHelper.executeAndAwaitJob(jobName);
+        this.savingsAccountHelper.reverseSavingsAccountTransaction(savingsId, withdrawalTrx);
+        List<HashMap> transactions = this.savingsAccountHelper.getSavingsTransactions(savingsId);
+        boolean reversalFlag = false;
+        for (int i = 0; i < transactions.size(); i++) {
+            boolean isReversal = (boolean) transactions.get(i).get("isReversal");
+            if (isReversal) {
+                reversalFlag = true;
+                break;
+            }
+        }
+        Assertions.assertFalse(reversalFlag);
+    }
+
     private Integer createSavingsAccountDailyPostingOverdraft(final Integer clientID, final String startDate) {
         final Integer savingsProductID = createSavingsProductDailyPostingOverdraft();
         Assertions.assertNotNull(savingsProductID);

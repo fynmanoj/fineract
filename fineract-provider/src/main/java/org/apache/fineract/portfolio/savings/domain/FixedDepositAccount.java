@@ -39,6 +39,7 @@ import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.OneToOne;
 import javax.persistence.Transient;
+import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
 import org.apache.fineract.infrastructure.core.api.JsonCommand;
 import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.DataValidatorBuilder;
@@ -77,6 +78,8 @@ public class FixedDepositAccount extends SavingsAccount {
 
     @Transient
     protected InterestRateChartAssembler chartAssembler;
+    @Transient
+    private ConfigurationDomainService configurationDomainService;
 
     protected FixedDepositAccount() {
         //
@@ -527,7 +530,7 @@ public class FixedDepositAccount extends SavingsAccount {
         final boolean isInterestTransfer = false;
         final LocalDate postInterestOnDate = null;
         final boolean backdatedTxnsAllowedTill = false;
-        boolean postReversals = false;
+        boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
         final List<PostingPeriod> postingPeriods = calculateInterestUsing(mc, interestPostingUpToDate, isInterestTransfer,
                 isSavingsInterestPostingAtCurrentPeriodEnd, financialYearBeginningMonth, postInterestOnDate, backdatedTxnsAllowedTill,
                 postReversals);
@@ -598,7 +601,7 @@ public class FixedDepositAccount extends SavingsAccount {
         }
 
         recalucateDailyBalance = applyWithholdTaxForDepositAccounts(accountCloseDate, recalucateDailyBalance, backdatedTxnsAllowedTill);
-        boolean postReversals = false;
+        boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
         if (recalucateDailyBalance) {
             // update existing transactions so derived balance fields are
             // correct.
@@ -644,7 +647,7 @@ public class FixedDepositAccount extends SavingsAccount {
             final boolean isSavingsInterestPostingAtCurrentPeriodEnd, final Integer financialYearBeginningMonth,
             final LocalDate postInterestOnDate, final boolean backdatedTxnsAllowedTill) {
         final LocalDate interestPostingUpToDate = interestPostingUpToDate(postingDate);
-        boolean postReversals = false;
+        boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
         super.postInterest(mc, interestPostingUpToDate, isInterestTransfer, isSavingsInterestPostingAtCurrentPeriodEnd,
                 financialYearBeginningMonth, postInterestOnDate, backdatedTxnsAllowedTill, postReversals);
     }

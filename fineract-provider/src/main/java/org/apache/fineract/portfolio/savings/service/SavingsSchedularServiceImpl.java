@@ -248,11 +248,11 @@ public class SavingsSchedularServiceImpl implements SavingsSchedularService {
     @CronTarget(jobName = JobName.UPDATE_SAVINGS_DORMANT_ACCOUNTS)
     public void updateSavingsDormancyStatus() throws JobExecutionException {
         LocalDate tenantLocalDate = DateUtils.getBusinessLocalDate();
-
+        final boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
         List<Long> savingsPendingInactive = savingAccountReadPlatformService.retrieveSavingsIdsPendingInactive(tenantLocalDate);
         if (null != savingsPendingInactive && savingsPendingInactive.size() > 0) {
             for (Long savingsId : savingsPendingInactive) {
-                this.savingsAccountWritePlatformService.setSubStatusInactive(savingsId);
+                this.savingsAccountWritePlatformService.setSubStatusInactive(savingsId, postReversals);
             }
         }
 
@@ -266,7 +266,7 @@ public class SavingsSchedularServiceImpl implements SavingsSchedularService {
         List<Long> savingsPendingEscheat = savingAccountReadPlatformService.retrieveSavingsIdsPendingEscheat(tenantLocalDate);
         if (null != savingsPendingEscheat && savingsPendingEscheat.size() > 0) {
             for (Long savingsId : savingsPendingEscheat) {
-                this.savingsAccountWritePlatformService.escheat(savingsId);
+                this.savingsAccountWritePlatformService.escheat(savingsId, postReversals);
             }
         }
     }

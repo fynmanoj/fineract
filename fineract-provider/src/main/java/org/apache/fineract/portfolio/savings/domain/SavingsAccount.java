@@ -977,7 +977,6 @@ public class SavingsAccount extends AbstractPersistableCustom {
 
     protected void recalculateDailyBalances(final Money openingAccountBalance, final LocalDate interestPostingUpToDate,
             final boolean backdatedTxnsAllowedTill, boolean postReversals) {
-
         Money runningBalance = openingAccountBalance.copy();
 
         List<SavingsAccountTransaction> accountTransactionsSorted = null;
@@ -2741,7 +2740,7 @@ public class SavingsAccount extends AbstractPersistableCustom {
     }
 
     public void processAccountUponActivation(final boolean isSavingsInterestPostingAtCurrentPeriodEnd,
-            final Integer financialYearBeginningMonth, final AppUser user) {
+            final Integer financialYearBeginningMonth, final AppUser user, final boolean postReversals) {
 
         // update annual fee due date
         for (SavingsAccountCharge charge : this.charges()) {
@@ -2749,7 +2748,7 @@ public class SavingsAccount extends AbstractPersistableCustom {
         }
 
         // auto pay the activation time charges (No need of checking the pivot date config)
-        this.payActivationCharges(isSavingsInterestPostingAtCurrentPeriodEnd, financialYearBeginningMonth, user, false);
+        this.payActivationCharges(isSavingsInterestPostingAtCurrentPeriodEnd, financialYearBeginningMonth, user, false, postReversals);
         // TODO : AA add activation charges to actual changes list
     }
 
@@ -2773,7 +2772,7 @@ public class SavingsAccount extends AbstractPersistableCustom {
     }
 
     private void payActivationCharges(final boolean isSavingsInterestPostingAtCurrentPeriodEnd, final Integer financialYearBeginningMonth,
-            final AppUser user, final boolean backdatedTxnsAllowedTill) {
+            final AppUser user, final boolean backdatedTxnsAllowedTill, final boolean postReversals) {
         boolean isSavingsChargeApplied = false;
         UUID refNo = UUID.randomUUID();
         for (SavingsAccountCharge savingsAccountCharge : this.charges()) {
@@ -2788,7 +2787,6 @@ public class SavingsAccount extends AbstractPersistableCustom {
             final MathContext mc = MathContext.DECIMAL64;
             boolean isInterestTransfer = false;
             LocalDate postInterestAsOnDate = null;
-            boolean postReversals = false;
             if (this.isBeforeLastPostingPeriod(getActivationLocalDate(), backdatedTxnsAllowedTill)) {
                 final LocalDate today = DateUtils.getBusinessLocalDate();
                 this.postInterest(mc, today, isInterestTransfer, isSavingsInterestPostingAtCurrentPeriodEnd, financialYearBeginningMonth,
@@ -3525,7 +3523,7 @@ public class SavingsAccount extends AbstractPersistableCustom {
         return recalucateDailyBalance;
     }
 
-    public void setSubStatusInactive(AppUser appUser, final boolean backdatedTxnsAllowedTill) {
+    public void setSubStatusInactive(AppUser appUser, final boolean backdatedTxnsAllowedTill, final boolean postReversals) {
         this.sub_status = SavingsAccountSubStatusEnum.INACTIVE.getValue();
         LocalDate transactionDate = DateUtils.getBusinessLocalDate();
         for (SavingsAccountCharge charge : this.charges()) {
@@ -3536,7 +3534,6 @@ public class SavingsAccount extends AbstractPersistableCustom {
                         refNo.toString());
             }
         }
-        boolean postReversals = false;
         recalculateDailyBalances(Money.zero(this.currency), transactionDate, backdatedTxnsAllowedTill, postReversals);
         this.summary.updateSummary(this.currency, this.savingsAccountTransactionSummaryWrapper, this.transactions);
     }
@@ -3545,7 +3542,7 @@ public class SavingsAccount extends AbstractPersistableCustom {
         this.sub_status = SavingsAccountSubStatusEnum.DORMANT.getValue();
     }
 
-    public void escheat(AppUser appUser) {
+    public void escheat(AppUser appUser, boolean postReversals) {
         this.status = SavingsAccountStatusType.CLOSED.getValue();
         this.sub_status = SavingsAccountSubStatusEnum.ESCHEAT.getValue();
         this.closedOnDate = DateUtils.getBusinessLocalDate();
@@ -3556,7 +3553,6 @@ public class SavingsAccount extends AbstractPersistableCustom {
             SavingsAccountTransaction transaction = SavingsAccountTransaction.escheat(this, transactionDate, appUser, postInterestAsOnDate);
             this.transactions.add(transaction);
         }
-        boolean postReversals = false;
         recalculateDailyBalances(Money.zero(this.currency), transactionDate, false, postReversals);
         this.summary.updateSummary(this.currency, this.savingsAccountTransactionSummaryWrapper, this.transactions);
     }

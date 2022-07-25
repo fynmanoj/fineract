@@ -444,4 +444,11 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
     public boolean isCOBDateAdjustmentEnabled() {
         return getGlobalConfigurationPropertyData(ENABLE_AUTOMATIC_COB_DATE_ADJUSTMENT).isEnabled();
     }
+
+    @Override
+    public boolean isReversalTransactionAllowed() {
+        final String propertyName = "allow-reversals-for-reversed-transactions";
+        final GlobalConfigurationPropertyData property = getGlobalConfigurationPropertyData(propertyName);
+        return property.isEnabled();
+    }
 }
