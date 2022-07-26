@@ -25,7 +25,7 @@
     <changeSet author="fineract" id="1">
         <insert tableName="c_configuration">
             <column name="id" valueNumeric="46"/>
-            <column name="name" value="allow-reversals-for-reversed-transactions"/>
+            <column name="name" value="enable-post-reversal-txns-for-reverse-transactions"/>
             <column name="value"/>
             <column name="date_value"/>
             <column name="string_value"/>

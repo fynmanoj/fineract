@@ -298,7 +298,7 @@ public class SavingsAccountDomainServiceJpa implements SavingsAccountDomainServi
                 .isSavingsInterestPostingAtCurrentPeriodEnd();
         final Integer financialYearBeginningMonth = this.configurationDomainService.retrieveFinancialYearBeginningMonth();
         final Long relaxingDaysConfigForPivotDate = this.configurationDomainService.retrieveRelaxingDaysConfigForPivotDate();
-        final boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
+        final boolean postReversals = true;
         final Set<Long> existingTransactionIds = new HashSet<>();
         final Set<Long> existingReversedTransactionIds = new HashSet<>();
 

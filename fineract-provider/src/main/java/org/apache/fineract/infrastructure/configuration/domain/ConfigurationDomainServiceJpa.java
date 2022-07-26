@@ -447,7 +447,7 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
 
     @Override
     public boolean isReversalTransactionAllowed() {
-        final String propertyName = "allow-reversals-for-reversed-transactions";
+        final String propertyName = "enable-post-reversal-txns-for-reverse-transactions";
         final GlobalConfigurationPropertyData property = getGlobalConfigurationPropertyData(propertyName);
         return property.isEnabled();
     }

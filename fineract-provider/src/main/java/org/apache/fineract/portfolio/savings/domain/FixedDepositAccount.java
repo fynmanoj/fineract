@@ -530,7 +530,7 @@ public class FixedDepositAccount extends SavingsAccount {
         final boolean isInterestTransfer = false;
         final LocalDate postInterestOnDate = null;
         final boolean backdatedTxnsAllowedTill = false;
-        boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
+        boolean postReversals = false;
         final List<PostingPeriod> postingPeriods = calculateInterestUsing(mc, interestPostingUpToDate, isInterestTransfer,
                 isSavingsInterestPostingAtCurrentPeriodEnd, financialYearBeginningMonth, postInterestOnDate, backdatedTxnsAllowedTill,
                 postReversals);
@@ -601,7 +601,7 @@ public class FixedDepositAccount extends SavingsAccount {
         }
 
         recalucateDailyBalance = applyWithholdTaxForDepositAccounts(accountCloseDate, recalucateDailyBalance, backdatedTxnsAllowedTill);
-        boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
+        boolean postReversals = false;
         if (recalucateDailyBalance) {
             // update existing transactions so derived balance fields are
             // correct.
@@ -647,7 +647,7 @@ public class FixedDepositAccount extends SavingsAccount {
             final boolean isSavingsInterestPostingAtCurrentPeriodEnd, final Integer financialYearBeginningMonth,
             final LocalDate postInterestOnDate, final boolean backdatedTxnsAllowedTill) {
         final LocalDate interestPostingUpToDate = interestPostingUpToDate(postingDate);
-        boolean postReversals = this.configurationDomainService.isReversalTransactionAllowed();
+        boolean postReversals = false;
         super.postInterest(mc, interestPostingUpToDate, isInterestTransfer, isSavingsInterestPostingAtCurrentPeriodEnd,
                 financialYearBeginningMonth, postInterestOnDate, backdatedTxnsAllowedTill, postReversals);
     }
