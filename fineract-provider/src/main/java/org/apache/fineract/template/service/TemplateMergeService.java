@@ -98,7 +98,11 @@ public class TemplateMergeService {
 
                 mappersMustache.execute(stringWriter, scopes);
                 String url = stringWriter.toString();
+                if (scopes.get("BASE_URI") == null) {
+                    scopes.put("BASE_URI", fineractProperties.getBaseUrl());
+                }
                 if (!url.startsWith("http")) {
+                    log.info("Base URL : {}", scopes.get("BASE_URI"));
                     url = scopes.get("BASE_URI") + url;
                 }
                 try {
@@ -167,7 +171,6 @@ public class TemplateMergeService {
                 connection.setRequestProperty("Authorization", "Basic " + authToken);// NOSONAR
             }
             TrustModifier.relaxHostChecking(connection);
-
             connection.setDoInput(true);
 
         } catch (IOException | KeyManagementException | NoSuchAlgorithmException | KeyStoreException e) {

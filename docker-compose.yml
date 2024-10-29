@@ -38,3 +38,9 @@ services:
       - ./config/docker/env/fineract.env
       - ./config/docker/env/fineract-common.env
       - ./config/docker/env/fineract-mariadb.env
+  community-app:
+    image: openmf/community-app:latest
+    container_name: mifos-ui
+    restart: always
+    ports:
+      - 9090:80

@@ -25,7 +25,6 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -74,14 +73,7 @@ public class MessageGatewayHookProcessor implements HookProcessor {
         String templateName = entityName + "_" + actionName;
 
         // 1 : find template via mapper using entity and action
-        Template template;
-        List<Template> templates = this.templateRepository.findByTemplateMapper("SMS_template_Key", templateName);
-        if (templates.isEmpty()) {
-            // load default template if set.
-            template = hook.getUgdTemplate();
-        } else {
-            template = templates.get(0);
-        }
+        Template template = this.templateRepository.findByName(templateName).orElse(hook.getUgdTemplate());
         if (template == null) {
             log.error("Error : {} with name {}", "Template not found", templateName);
             throw new GeneralPlatformDomainRuleException("error.msg.templates.not.found", "Template not found", templateName);
@@ -89,13 +81,28 @@ public class MessageGatewayHookProcessor implements HookProcessor {
 
         // 2.1 : get customer details for basic template mapping
         // 2.2 : cook up scope map
-        Type type = new TypeToken<Map<String, String>>() {
+        Type type = new TypeToken<Map<String, Object>>() {
 
         }.getType();
+        // todo check the decimal issues in Long ids
         Map<String, Object> reqMap = new Gson().fromJson(payload, type);
+        if ("Exception".equals(reqMap.get("status"))) {
+            log.debug("Operation failed, skipping hook");
+            return;
+        }
+        if (reqMap.get("savingsId") != null) {
+            Long savingsId = (long) Double.parseDouble(String.valueOf(reqMap.get("savingsId")));
+            reqMap.put("savingsId", savingsId);
+        }
+        if (reqMap.get("loanId") != null) {
+            Long loanId = (long) Double.parseDouble(String.valueOf(reqMap.get("loanId")));
+            reqMap.put("loanId", loanId);
+        }
+
         if (reqMap.get("clientId") != null) {
-            Long clientId = (Long) reqMap.get("clientId");
+            Long clientId = (long) Double.parseDouble(String.valueOf(reqMap.get("clientId")));
             Client client = clientRepository.findOneWithNotFoundDetection(clientId);
+            reqMap.put("clientId", clientId);
             reqMap.put("clientName", client.getDisplayName());
 
             // 3: compile template using Mustache

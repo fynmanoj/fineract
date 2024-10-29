@@ -52,6 +52,9 @@ buildscript {
         npmRepository = 'https://npm.pkg.github.com'
     }
     repositories {
+        maven {
+            url 'https://archiva-repository.apache.org/archiva/repository/public/'
+        }
         maven { url 'https://plugins.gradle.org/m2/' }
     }
 
@@ -752,7 +755,6 @@ configure(project.fineractPublishProjects) {
         repositories {
             def releaseUrl = 'https://repository.apache.org/content/repositories/releases'
             def stagingUrl = 'https://repository.apache.org/content/repositories/snapshots'
-
             maven {
                 name 'apache'
                 url hasProperty('fineract.release.version') ? releaseUrl : stagingUrl

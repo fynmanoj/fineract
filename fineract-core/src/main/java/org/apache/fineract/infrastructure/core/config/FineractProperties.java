@@ -34,6 +34,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "fineract")
 public class FineractProperties {
 
+    private String baseUrl;
+
     private String nodeId;
 
     private String idempotencyKeyHeaderName;

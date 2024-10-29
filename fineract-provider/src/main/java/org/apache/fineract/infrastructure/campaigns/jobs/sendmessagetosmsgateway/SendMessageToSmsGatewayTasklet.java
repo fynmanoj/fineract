@@ -84,9 +84,10 @@ public class SendMessageToSmsGatewayTasklet implements Tasklet {
                             smsData.setStatusType(SmsMessageStatusType.WAITING_FOR_DELIVERY_REPORT.getValue());
                             toSendNotificationMessages.add(smsData);
                         } else {
+                            String emailAddress = (smsData.getClient() != null) ? smsData.getClient().emailAddress() : null;
                             SmsMessageApiQueueResourceData apiQueueResourceData = SmsMessageApiQueueResourceData.instance(smsData.getId(),
                                     tenantIdentifier, null, null, smsData.getMobileNo(), smsData.getMessage(),
-                                    smsData.getSmsCampaign().getProviderId());
+                                    smsData.getSmsCampaign().getProviderId(), emailAddress);
                             apiQueueResourceDataCollection.add(apiQueueResourceData);
                             smsData.setStatusType(SmsMessageStatusType.WAITING_FOR_DELIVERY_REPORT.getValue());
                             toSaveMessages.add(smsData);

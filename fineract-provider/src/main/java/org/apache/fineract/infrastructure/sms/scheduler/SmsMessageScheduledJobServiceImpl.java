@@ -97,9 +97,10 @@ public class SmsMessageScheduledJobServiceImpl implements SmsMessageScheduledJob
                             smsMessage.setStatusType(SmsMessageStatusType.WAITING_FOR_DELIVERY_REPORT.getValue());
                             toSendNotificationMessages.add(smsMessage);
                         } else {
+                            String emailAddress = (smsMessage.getClient() != null) ? smsMessage.getClient().emailAddress() : null;
                             SmsMessageApiQueueResourceData apiQueueResourceData = SmsMessageApiQueueResourceData.instance(
                                     smsMessage.getId(), null, null, null, smsMessage.getMobileNo(), smsMessage.getMessage(),
-                                    entry.getKey().getProviderId());
+                                    entry.getKey().getProviderId(), emailAddress);
                             apiQueueResourceDatas.add(apiQueueResourceData);
                             smsMessage.setStatusType(SmsMessageStatusType.WAITING_FOR_DELIVERY_REPORT.getValue());
                             toSaveMessages.add(smsMessage);
@@ -127,8 +128,9 @@ public class SmsMessageScheduledJobServiceImpl implements SmsMessageScheduledJob
             Collection<SmsMessageApiQueueResourceData> apiQueueResourceDatas = new ArrayList<>();
             StringBuilder request = new StringBuilder();
             for (SmsMessage smsMessage : smsMessages) {
+                String emailAddress = (smsMessage.getClient() != null) ? smsMessage.getClient().emailAddress() : null;
                 SmsMessageApiQueueResourceData apiQueueResourceData = SmsMessageApiQueueResourceData.instance(smsMessage.getId(), null,
-                        null, null, smsMessage.getMobileNo(), smsMessage.getMessage(), providerId);
+                        null, null, smsMessage.getMobileNo(), smsMessage.getMessage(), providerId, emailAddress);
                 apiQueueResourceDatas.add(apiQueueResourceData);
                 smsMessage.setStatusType(SmsMessageStatusType.WAITING_FOR_DELIVERY_REPORT.getValue());
             }
