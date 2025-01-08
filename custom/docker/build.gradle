@@ -27,7 +27,7 @@ jib {
         image = 'azul/zulu-openjdk-alpine:17'
         platforms {
             platform {
-                architecture = System.getProperty("os.arch").equals("aarch64")?"arm64":"amd64"
+                architecture ="amd64"
                 os = 'linux'
             }
         }

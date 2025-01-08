@@ -19,6 +19,7 @@
 package org.apache.fineract.useradministration.service;
 
 import static org.apache.fineract.useradministration.service.AppUserConstants.CLIENTS;
+import static org.apache.fineract.useradministration.service.UserDataValidator.PASSWORD;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -40,6 +41,7 @@ import org.apache.fineract.infrastructure.core.exception.ErrorHandler;
 import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.exception.PlatformDataIntegrityException;
 import org.apache.fineract.infrastructure.core.service.PlatformEmailSendException;
+import org.apache.fineract.infrastructure.security.exception.ResetPasswordException;
 import org.apache.fineract.infrastructure.security.service.PlatformPasswordEncoder;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.organisation.office.domain.Office;
@@ -66,6 +68,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
@@ -76,6 +79,7 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
     private final PlatformSecurityContext context;
     private final UserDomainService userDomainService;
     private final PlatformPasswordEncoder platformPasswordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final AppUserRepository appUserRepository;
     private final OfficeRepositoryWrapper officeRepositoryWrapper;
     private final RoleRepository roleRepository;
@@ -161,7 +165,14 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
         try {
             this.context.authenticatedUser(new CommandWrapperBuilder().updateUser(null).build());
 
-            this.fromApiJsonDeserializer.validateForUpdate(command.json(), this.context.authenticatedUser());
+            boolean isSelfPasswordRestRequest = false;
+            if (isSelfPasswordReset(userId)) {
+                isSelfPasswordRestRequest = true;
+            }
+
+            this.fromApiJsonDeserializer.validateForUpdate(command.json(),
+                    isSelfPasswordRestRequest ? this.context.authenticatedUser(new CommandWrapperBuilder().updateUser(null).build())
+                            : this.context.authenticatedUser());
 
             final AppUser userToUpdate = this.appUserRepository.findById(userId).orElseThrow(() -> new UserNotFoundException(userId));
 
@@ -229,6 +240,15 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
         }
     }
 
+    private boolean isSelfPasswordReset(Long userId) {
+        try {
+            return this.context.doesPasswordHasToBeRenewed(this.context.getAuthenticatedUserIfPresent())
+                    && userId.equals(this.context.getAuthenticatedUserIfPresent().getId());
+        } catch (ResetPasswordException e) {
+            return true;
+        }
+    }
+
     /**
      * Encode the new submitted password and retrieve the last N used passwords to check if the current submitted
      * password matches with one of them.
@@ -239,11 +259,12 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
         AppUserPreviousPassword currentPasswordToSaveAsPreview = null;
 
         if (passWordEncodedValue != null) {
-            PageRequest pageRequest = PageRequest.of(0, AppUserApiConstant.numberOfPreviousPasswords, Sort.Direction.DESC, "removalDate");
+            PageRequest pageRequest = PageRequest.of(0, AppUserApiConstant.numberOfPreviousPasswords, Sort.Direction.DESC, "removalDate",
+                    "id");
             final List<AppUserPreviousPassword> nLastUsedPasswords = this.appUserPreviewPasswordRepository.findByUserId(user.getId(),
                     pageRequest);
             for (AppUserPreviousPassword aPreviewPassword : nLastUsedPasswords) {
-                if (aPreviewPassword.getPassword().equals(passWordEncodedValue)) {
+                if (this.passwordEncoder.matches(command.stringValueOfParameterNamed(PASSWORD), aPreviewPassword.getPassword())) {
                     throw new PasswordPreviouslyUsedException();
                 }
             }
