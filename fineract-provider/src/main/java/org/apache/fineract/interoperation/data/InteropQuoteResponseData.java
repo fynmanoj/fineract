@@ -36,7 +36,7 @@ public final class InteropQuoteResponseData extends InteropResponseData {
     private InteropQuoteResponseData(Long resourceId, Long officeId, Long commandId, Map<String, Object> changesOnly,
             @NotNull String transactionCode, @NotNull InteropActionState state, LocalDateTime expiration, List<ExtensionData> extensionList,
             @NotNull String quoteCode, MoneyData fspFee, MoneyData fspCommission) {
-        super(resourceId, officeId, commandId, changesOnly, transactionCode, state, expiration, extensionList);
+        super(resourceId, officeId, commandId, changesOnly, transactionCode, state, expiration, extensionList, null);
         this.quoteCode = quoteCode;
         this.fspFee = fspFee;
         this.fspCommission = fspCommission;

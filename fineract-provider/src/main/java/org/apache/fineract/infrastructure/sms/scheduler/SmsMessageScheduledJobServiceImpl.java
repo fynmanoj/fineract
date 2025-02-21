@@ -66,37 +66,49 @@ public class SmsMessageScheduledJobServiceImpl implements SmsMessageScheduledJob
     private final ThreadPoolTaskExecutor taskExecutor;
 
     private void connectAndSendToIntermediateServer(Collection<SmsMessageApiQueueResourceData> apiQueueResourceDatas) {
+        log.info("connectAndSendToIntermediateServer --- start {} ", apiQueueResourceDatas);
         Map<String, Object> hostConfig = this.smsConfigUtils.getMessageGateWayRequestURI("sms",
                 SmsMessageApiQueueResourceData.toJsonString(apiQueueResourceDatas));
         URI uri = (URI) hostConfig.get("uri");
         HttpEntity<?> entity = (HttpEntity<?>) hostConfig.get("entity");
-        ResponseEntity<String> responseOne = restTemplate.exchange(uri, HttpMethod.POST, entity, new ParameterizedTypeReference<String>() {
+        try {
+            ResponseEntity<String> responseOne = restTemplate.exchange(uri, HttpMethod.POST, entity, new ParameterizedTypeReference<String>() {
 
-        });
-        if (responseOne != null) {
-            // String smsResponse = responseOne.getBody();
-            if (!responseOne.getStatusCode().equals(HttpStatus.ACCEPTED)) {
-                log.debug("{}", responseOne.getStatusCode().value());
-                throw new ConnectionFailureException(SmsCampaignConstants.SMS);
+            });
+            if (responseOne != null) {
+                // String smsResponse = responseOne.getBody();
+                if (!responseOne.getStatusCode().equals(HttpStatus.ACCEPTED)) {
+                    log.debug("{}", responseOne.getStatusCode().value());
+                    throw new ConnectionFailureException(SmsCampaignConstants.SMS);
+                }
             }
+        } catch (Exception e) {
+           log.info("connectAndSendToIntermediateServer -- Error {}", e.getMessage());
+           log.error("Error", e);
         }
     }
 
     @Override
     public void sendTriggeredMessages(Map<SmsCampaign, Collection<SmsMessage>> smsDataMap) {
+        log.info("sendTriggeredMessages --- 1");
         try {
             if (!smsDataMap.isEmpty()) {
+                log.info("sendTriggeredMessages --- 2");
                 List<SmsMessage> toSaveMessages = new ArrayList<>();
                 List<SmsMessage> toSendNotificationMessages = new ArrayList<>();
                 for (Map.Entry<SmsCampaign, Collection<SmsMessage>> entry : smsDataMap.entrySet()) {
+                    log.info("sendTriggeredMessages --- 3");
                     Iterator<SmsMessage> smsMessageIterator = entry.getValue().iterator();
                     Collection<SmsMessageApiQueueResourceData> apiQueueResourceDatas = new ArrayList<>();
                     while (smsMessageIterator.hasNext()) {
+                        log.info("sendTriggeredMessages --- 4");
                         SmsMessage smsMessage = smsMessageIterator.next();
                         if (smsMessage.isNotification()) {
+                            log.info("sendTriggeredMessages --- 5");
                             smsMessage.setStatusType(SmsMessageStatusType.WAITING_FOR_DELIVERY_REPORT.getValue());
                             toSendNotificationMessages.add(smsMessage);
                         } else {
+                            log.info("sendTriggeredMessages --- 6");
                             String emailAddress = (smsMessage.getClient() != null) ? smsMessage.getClient().emailAddress() : null;
                             SmsMessageApiQueueResourceData apiQueueResourceData = SmsMessageApiQueueResourceData.instance(
                                     smsMessage.getId(), null, null, null, smsMessage.getMobileNo(), smsMessage.getMessage(),
@@ -107,11 +119,13 @@ public class SmsMessageScheduledJobServiceImpl implements SmsMessageScheduledJob
                         }
                     }
                     if (toSaveMessages.size() > 0) {
+                        log.info("sendTriggeredMessages --- 7");
                         this.smsMessageRepository.saveAll(toSaveMessages);
                         this.smsMessageRepository.flush();
                         this.taskExecutor.execute(new SmsTask(apiQueueResourceDatas, ThreadLocalContextUtil.getContext()));
                     }
                     if (!toSendNotificationMessages.isEmpty()) {
+                        log.info("sendTriggeredMessages --- 8");
                         this.notificationSenderService.sendNotification(toSendNotificationMessages);
                     }
 
@@ -125,6 +139,7 @@ public class SmsMessageScheduledJobServiceImpl implements SmsMessageScheduledJob
     @Override
     public void sendTriggeredMessage(Collection<SmsMessage> smsMessages, long providerId) {
         try {
+            log.info("sendTriggeredMessage  -- start");
             Collection<SmsMessageApiQueueResourceData> apiQueueResourceDatas = new ArrayList<>();
             StringBuilder request = new StringBuilder();
             for (SmsMessage smsMessage : smsMessages) {
@@ -137,9 +152,10 @@ public class SmsMessageScheduledJobServiceImpl implements SmsMessageScheduledJob
             this.smsMessageRepository.saveAll(smsMessages);
             request.append(SmsMessageApiQueueResourceData.toJsonString(apiQueueResourceDatas));
             log.debug("Sending triggered SMS to specific provider with request - {}", request);
+            log.info("sendTriggeredMessage  -- Sending triggered SMS to specific provider with request - {}", request);
             this.taskExecutor.execute(new SmsTask(apiQueueResourceDatas, ThreadLocalContextUtil.getContext()));
         } catch (Exception e) {
-            log.error("Error occured.", e);
+            log.error("sendTriggeredMessage  -- Error occurred", e);
         }
     }
 
@@ -157,7 +173,7 @@ public class SmsMessageScheduledJobServiceImpl implements SmsMessageScheduledJob
         public void run() {
             ThreadLocalContextUtil.init(context);
             connectAndSendToIntermediateServer(apiQueueResourceDatas);
-        }
+       }
 
         @Override
         public void onApplicationEvent(ContextClosedEvent event) {

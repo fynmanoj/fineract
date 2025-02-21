@@ -58,7 +58,7 @@ public class MessageGatewayHookProcessor implements HookProcessor {
     @Override
     public void process(final Hook hook, final String payload, final String entityName, final String actionName,
             final FineractContext context) throws IOException {
-
+        log.info("MessageGatewayHookProcessor -- process entityName :{}, actionName:{}, payload :{}", entityName, actionName, payload );
         final Set<HookConfiguration> config = hook.getConfig();
 
         Integer SMSProviderId = null;
@@ -71,14 +71,14 @@ public class MessageGatewayHookProcessor implements HookProcessor {
         }
 
         String templateName = entityName + "_" + actionName;
-
+        log.info("MessageGatewayHookProcessor -- process templateName: {}", templateName);
         // 1 : find template via mapper using entity and action
         Template template = this.templateRepository.findByName(templateName).orElse(hook.getUgdTemplate());
         if (template == null) {
             log.error("Error : {} with name {}", "Template not found", templateName);
             throw new GeneralPlatformDomainRuleException("error.msg.templates.not.found", "Template not found", templateName);
         }
-
+        log.info("MessageGatewayHookProcessor -- process -- template loaded successfully");
         // 2.1 : get customer details for basic template mapping
         // 2.2 : cook up scope map
         Type type = new TypeToken<Map<String, Object>>() {
@@ -105,9 +105,12 @@ public class MessageGatewayHookProcessor implements HookProcessor {
             reqMap.put("clientId", clientId);
             reqMap.put("clientName", client.getDisplayName());
 
+            log.info("MessageGatewayHookProcessor -- process -- create smsText");
             // 3: compile template using Mustache
             String smsText = this.templateMergeService.compile(template, reqMap);
             // 4 : send message to the url
+
+            log.info("MessageGatewayHookProcessor -- process -- create smsText done {}", smsText);
 
             SmsMessage smsMessage = SmsMessage.pendingSms(null, null, client, null, smsText, client.mobileNo(), null, false);
             this.smsMessageRepository.save(smsMessage);

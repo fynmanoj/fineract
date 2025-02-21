@@ -374,7 +374,8 @@ public class InteropApiResource {
 
         InteropTransferResponseData result = (InteropTransferResponseData) commandsSourceService.logCommandSource(commandRequest);
         ApiRequestJsonSerializationSettings settings = this.apiRequestParameterHelper.process(uriInfo.getQueryParameters());
-
+        //prevent internal Ids from interop APIs
+        result.setClientId(null);
         return jsonSerializer.serialize(settings, result);
     }
 

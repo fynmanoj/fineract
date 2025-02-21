@@ -22,6 +22,8 @@ import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.campaigns.sms.constants.SmsCampaignConstants;
 import org.apache.fineract.infrastructure.campaigns.sms.data.MessageGatewayConfigurationData;
 import org.apache.fineract.infrastructure.configuration.service.ExternalServicesPropertiesReadPlatformService;
@@ -33,6 +35,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class SmsConfigUtils {
 
@@ -42,6 +45,7 @@ public class SmsConfigUtils {
     // This method will return uri and HttpEntry objects with keys as uri and
     // entity
     public Map<String, Object> getMessageGateWayRequestURI(final String apiEndPoint, String apiQueueResourceDatas) {
+        log.info("getMessageGateWayRequestURI ---  start {}", apiEndPoint);
         Map<String, Object> httpRequestdetails = new HashMap<>();
         MessageGatewayConfigurationData messageGatewayConfigurationData = this.propertiesReadPlatformService.getSMSGateway();
         final FineractPlatformTenant tenant = ThreadLocalContextUtil.getTenant();
@@ -49,6 +53,8 @@ public class SmsConfigUtils {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.add(SmsCampaignConstants.FINERACT_PLATFORM_TENANT_ID, tenant.getTenantIdentifier());
         headers.add(SmsCampaignConstants.FINERACT_TENANT_APP_KEY, messageGatewayConfigurationData.getTenantAppKey());
+        log.info("getMessageGateWayRequestURI ---  tenant.getTenantIdentifier() {}", tenant.getTenantIdentifier());
+        log.info("getMessageGateWayRequestURI ---  messageGatewayConfigurationData.getTenantAppKey() {}", messageGatewayConfigurationData.getTenantAppKey());
         StringBuilder pathBuilder = new StringBuilder();
         String endPoint = messageGatewayConfigurationData.getEndPoint() == null || messageGatewayConfigurationData.getEndPoint().equals("/")
                 ? ""
@@ -57,11 +63,13 @@ public class SmsConfigUtils {
                 ? pathBuilder.append("{apiEndPoint}")
                 : pathBuilder.append("{endPoint}/{apiEndPoint}");
         // pathBuilder.append("{endPoint}/{apiEndPoint}") ;
+        log.info("getMessageGateWayRequestURI --- endPoint {}, pathBuilder{} ", endPoint, pathBuilder);
         UriBuilder builder = UriBuilder.fromPath(pathBuilder.toString()).host(messageGatewayConfigurationData.getHostName()).scheme("http")
                 .port(messageGatewayConfigurationData.getPortNumber());
         URI uri = messageGatewayConfigurationData.getEndPoint() == null || messageGatewayConfigurationData.getEndPoint().equals("/")
                 ? builder.build(apiEndPoint)
                 : builder.build(endPoint, apiEndPoint);
+        log.info("getMessageGateWayRequestURI --- uri {} ",uri);
         HttpEntity<?> entity = null;
         if (apiQueueResourceDatas != null) {
             entity = new HttpEntity<>(apiQueueResourceDatas, headers);
@@ -71,6 +79,7 @@ public class SmsConfigUtils {
 
         httpRequestdetails.put("uri", uri);
         httpRequestdetails.put("entity", entity);
+        log.info("getMessageGateWayRequestURI --- entity {} ",entity);
 
         return httpRequestdetails;
     }

@@ -34,7 +34,7 @@ public class CommandProcessingResult implements Serializable {
     private Long commandId;
     private Long officeId;
     private final Long groupId;
-    private final Long clientId;
+    private Long clientId;
     private final Long loanId;
     private final Long savingsId;
     private final Long resourceId;
@@ -137,6 +137,10 @@ public class CommandProcessingResult implements Serializable {
 
     public void setOfficeId(final Long officeId) {
         this.officeId = officeId;
+    }
+
+    public void setClientId(Long clientId) {
+        this.clientId = clientId;
     }
 
     public Map<String, Object> getChanges() {

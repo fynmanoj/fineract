@@ -351,7 +351,7 @@ public class InteropServiceImpl implements InteropService {
         InteropTransferRequestData request = dataValidator.validateAndParseTransferRequest(command);
         String transferCode = request.getTransferCode();
         LocalDate transactionDate = DateUtils.getBusinessLocalDate();
-
+        Long clientId = null;
         // TODO validate request fee/comission and account quote amount
         // matching, at CREATE it is debited anyway
 
@@ -379,12 +379,12 @@ public class InteropServiceImpl implements InteropService {
 
             savingsAccount.holdAmount(total);
             savingsAccount.addTransaction(holdTransaction);
-
+            clientId = savingsAccount.clientId();
             savingsAccountRepository.save(savingsAccount);
         }
 
         return InteropTransferResponseData.build(command.commandId(), request.getTransactionCode(), InteropActionState.ACCEPTED,
-                request.getExpiration(), request.getExtensionList(), transferCode, DateUtils.getLocalDateTimeOfTenant());
+                request.getExpiration(), request.getExtensionList(), transferCode, DateUtils.getLocalDateTimeOfTenant(), clientId);
     }
 
     @Override
@@ -448,7 +448,7 @@ public class InteropServiceImpl implements InteropService {
         }
 
         return InteropTransferResponseData.build(command.commandId(), request.getTransactionCode(), InteropActionState.ACCEPTED,
-                request.getExpiration(), request.getExtensionList(), request.getTransferCode(), transactionDateTime);
+                request.getExpiration(), request.getExtensionList(), request.getTransferCode(), transactionDateTime, savingsAccount.clientId());
     }
 
     @Override
@@ -479,7 +479,7 @@ public class InteropServiceImpl implements InteropService {
         }
 
         return InteropTransferResponseData.build(command.commandId(), request.getTransactionCode(), InteropActionState.ACCEPTED,
-                request.getExpiration(), request.getExtensionList(), request.getTransferCode(), transactionDateTime);
+                request.getExpiration(), request.getExtensionList(), request.getTransferCode(), transactionDateTime, savingsAccount.clientId());
     }
 
     @Override

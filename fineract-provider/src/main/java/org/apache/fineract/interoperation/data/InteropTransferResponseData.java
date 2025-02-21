@@ -35,26 +35,27 @@ public final class InteropTransferResponseData extends InteropResponseData {
 
     private InteropTransferResponseData(Long resourceId, Long officeId, Long commandId, Map<String, Object> changesOnly,
             @NotNull String transactionCode, @NotNull InteropActionState state, LocalDateTime expiration, List<ExtensionData> extensionList,
-            @NotNull String transferCode, LocalDateTime completedTimestamp) {
-        super(resourceId, officeId, commandId, changesOnly, transactionCode, state, expiration, extensionList);
+            @NotNull String transferCode, LocalDateTime completedTimestamp, Long clientId) {
+        super(resourceId, officeId, commandId, changesOnly, transactionCode, state, expiration, extensionList, clientId);
         this.transferCode = transferCode;
         this.completedTimestamp = format(completedTimestamp);
     }
 
     public static InteropTransferResponseData build(Long commandId, @NotNull String transactionCode, @NotNull InteropActionState state,
-            LocalDateTime expiration, List<ExtensionData> extensionList, @NotNull String transferCode, LocalDateTime completedTimestamp) {
+            LocalDateTime expiration, List<ExtensionData> extensionList, @NotNull String transferCode, LocalDateTime completedTimestamp,
+                                                    Long clientId) {
         return new InteropTransferResponseData(null, null, commandId, null, transactionCode, state, expiration, extensionList, transferCode,
-                completedTimestamp);
+                completedTimestamp, clientId);
     }
 
     public static InteropTransferResponseData build(@NotNull String transactionCode, @NotNull InteropActionState state,
             List<ExtensionData> extensionList, @NotNull String transferCode, LocalDateTime completedTimestamp) {
-        return build(null, transactionCode, state, null, extensionList, transferCode, completedTimestamp);
+        return build(null, transactionCode, state, null, extensionList, transferCode, completedTimestamp, null);
     }
 
     public static InteropTransferResponseData build(Long commandId, @NotNull String transactionCode, @NotNull InteropActionState state,
             @NotNull String transferCode) {
-        return build(commandId, transactionCode, state, null, null, transferCode, null);
+        return build(commandId, transactionCode, state, null, null, transferCode, null, null);
     }
 
     public static InteropTransferResponseData build(@NotNull String transactionCode, @NotNull InteropActionState state,

@@ -289,6 +289,7 @@ public class SynchronousCommandProcessingService implements CommandProcessingSer
 
     private void publishHookEvent(final String entityName, final String actionName, JsonCommand command, final Object result) {
         try {
+            log.info("publishHookEvent -- start actionName: {}, entityName {}", actionName, entityName);
             final AppUser appUser = context.authenticatedUser(CommandWrapper.wrap(actionName, entityName, null, null));
 
             final HookEventSource hookEventSource = new HookEventSource(entityName, actionName);
@@ -309,6 +310,7 @@ public class SynchronousCommandProcessingService implements CommandProcessingSer
 
                 reqmap.put("request", myMap);
                 if (result instanceof CommandProcessingResult) {
+                    log.info("publishHookEvent -- success resp -- actionName: {}, entityName {}", actionName, entityName);
                     CommandProcessingResult resultCopy = CommandProcessingResult
                             .fromCommandProcessingResult((CommandProcessingResult) result);
 
@@ -334,7 +336,7 @@ public class SynchronousCommandProcessingService implements CommandProcessingSer
 
                 final HookEvent applicationEvent = new HookEvent(hookEventSource, serializedResult, appUser,
                         ThreadLocalContextUtil.getContext());
-
+                log.info("publishHookEvent -- {}",applicationEvent.getPayload()) ;
                 applicationContext.publishEvent(applicationEvent);
             }
         } catch (Exception e) {

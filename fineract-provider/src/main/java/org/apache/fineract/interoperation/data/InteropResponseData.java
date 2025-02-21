@@ -48,8 +48,8 @@ public class InteropResponseData extends CommandProcessingResult {
 
     protected InteropResponseData(Long resourceId, Long officeId, Long commandId, Map<String, Object> changesOnly,
             @NotNull String transactionCode, @NotNull InteropActionState state, LocalDateTime expiration,
-            List<ExtensionData> extensionList) {
-        super(resourceId, officeId, commandId, changesOnly);
+            List<ExtensionData> extensionList, Long clientId) {
+        super(resourceId, officeId, commandId, changesOnly, clientId);
         this.transactionCode = transactionCode;
         this.state = state;
         this.expiration = format(expiration);
@@ -58,7 +58,7 @@ public class InteropResponseData extends CommandProcessingResult {
 
     protected static InteropResponseData build(Long commandId, @NotNull String transactionCode, @NotNull InteropActionState state,
             LocalDateTime expiration, List<ExtensionData> extensionList) {
-        return new InteropResponseData(null, null, commandId, null, transactionCode, state, expiration, extensionList);
+        return new InteropResponseData(null, null, commandId, null, transactionCode, state, expiration, extensionList, null);
     }
 
     public static InteropResponseData build(@NotNull String transactionCode, @NotNull InteropActionState state, LocalDateTime expiration,

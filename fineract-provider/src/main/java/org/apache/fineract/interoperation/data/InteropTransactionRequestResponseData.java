@@ -32,7 +32,7 @@ public final class InteropTransactionRequestResponseData extends InteropResponse
     private InteropTransactionRequestResponseData(Long resourceId, Long officeId, Long commandId, Map<String, Object> changesOnly,
             @NotNull String transactionCode, @NotNull InteropActionState state, LocalDateTime expiration, List<ExtensionData> extensionList,
             @NotNull String requestCode) {
-        super(resourceId, officeId, commandId, changesOnly, transactionCode, state, expiration, extensionList);
+        super(resourceId, officeId, commandId, changesOnly, transactionCode, state, expiration, extensionList, null);
         this.requestCode = requestCode;
     }
 

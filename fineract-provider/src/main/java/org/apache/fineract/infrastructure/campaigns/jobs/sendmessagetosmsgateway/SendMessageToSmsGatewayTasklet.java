@@ -135,11 +135,17 @@ public class SendMessageToSmsGatewayTasklet implements Tasklet {
     }
 
     private void connectAndSendToIntermediateServer(Collection<SmsMessageApiQueueResourceData> apiQueueResourceDatas) {
+        log.info("connectAndSendToIntermediateServer -- start ");
         Map<String, Object> hostConfig = smsConfigUtils.getMessageGateWayRequestURI("sms",
                 SmsMessageApiQueueResourceData.toJsonString(apiQueueResourceDatas));
         URI uri = (URI) hostConfig.get("uri");
+
+        log.info("connectAndSendToIntermediateServer -- uri {} ", uri);
         HttpEntity<?> entity = (HttpEntity<?>) hostConfig.get("entity");
         ResponseEntity<String> responseOne = restTemplate.exchange(uri, HttpMethod.POST, entity, new ParameterizedTypeReference<>() {});
+
+        log.info("connectAndSendToIntermediateServer -- responseOne {} ", responseOne);
+        log.info("connectAndSendToIntermediateServer -- responseOne.status {} ", responseOne.getStatusCode());
         if (!responseOne.getStatusCode().equals(HttpStatus.ACCEPTED)) {
             log.debug("{}", responseOne.getStatusCode().value());
             throw new ConnectionFailureException(SmsCampaignConstants.SMS);
