@@ -85,6 +85,7 @@ public class SynchronousCommandProcessingService implements CommandProcessingSer
 
     @Override
     @Retry(name = "executeCommand", fallbackMethod = "fallbackExecuteCommand")
+    @Transactional
     public CommandProcessingResult executeCommand(final CommandWrapper wrapper, final JsonCommand command,
             final boolean isApprovedByChecker) {
         // Do not store the idempotency key because of the exception handling
@@ -156,6 +157,7 @@ public class SynchronousCommandProcessingService implements CommandProcessingSer
              */
             commandSource.setTransactionId(command.getTransactionId());
             // TODO: this should be removed together with lines 147-149
+            log.info("----------------Rollback-----------");
             commandSource.setCommandJson(command.json()); // Set back CommandSource json data
             throw new RollbackTransactionAsCommandIsNotApprovedByCheckerException(commandSource);
         }

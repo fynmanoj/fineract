@@ -77,7 +77,7 @@ public class CommandSourceService {
 
     @NotNull
     private CommandSource saveResult(@NotNull CommandSource commandSource) {
-        return commandSourceRepository.saveAndFlush(commandSource);
+        return commandSourceRepository.save(commandSource);
     }
 
     public ErrorInfo generateErrorInfo(Throwable t) {
