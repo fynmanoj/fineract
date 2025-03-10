@@ -70,14 +70,14 @@ public class CommandSourceService {
         return saveResult(commandSource);
     }
 
-    @Transactional(propagation = Propagation.REQUIRED)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.REPEATABLE_READ)
     public CommandSource saveResultSameTransaction(@NotNull CommandSource commandSource) {
         return saveResult(commandSource);
     }
 
     @NotNull
     private CommandSource saveResult(@NotNull CommandSource commandSource) {
-        return commandSourceRepository.save(commandSource);
+        return commandSourceRepository.saveAndFlush(commandSource);
     }
 
     public ErrorInfo generateErrorInfo(Throwable t) {

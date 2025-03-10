@@ -52,7 +52,7 @@ public class TenantPasswordEncryptionTask implements CustomTaskChange, Applicati
         JdbcConnection dbConn = (JdbcConnection) database.getConnection(); // autocommit is false
         try (Statement selectStatement = dbConn.createStatement(); Statement updateStatement = dbConn.createStatement()) {
 
-            try (ResultSet rs = selectStatement.executeQuery("SELECT id, schema_password FROM tenant_server_connections")) {
+            try (ResultSet rs = selectStatement.executeQuery("SELECT id, schema_password FROM tenant_server_connections where master_password_hash is null ")) {
                 while (rs.next()) {
                     String id = rs.getString("id");
                     if (!Boolean.TRUE.equals(done.get(id))) {
