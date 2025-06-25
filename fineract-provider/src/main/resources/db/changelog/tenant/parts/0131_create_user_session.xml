@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+    <changeSet id="create-user-sessions-table" author="manoj">
+        <createTable tableName="m_user_sessions">
+            <column name="session_key" type="VARCHAR(128)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_valid" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_used_at" type="DATETIME" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Optional: Indexes -->
+        <createIndex indexName="idx_user_session_user_session" tableName="m_user_sessions">
+            <column name="session_key"/>
+        </createIndex>
+
+        <createIndex indexName="idx_user_session_user_id" tableName="m_user_sessions">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_user_session_last_used" tableName="m_user_sessions">
+            <column name="last_used_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
