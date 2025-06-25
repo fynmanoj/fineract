@@ -18,15 +18,18 @@
  */
 package org.apache.fineract.infrastructure.crypt.service;
 
-import com.sun.jersey.spi.resource.Singleton;
+
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import jakarta.inject.Singleton;
 import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.infrastructure.crypt.domain.EncryptionKeyPair;
 import org.apache.fineract.infrastructure.crypt.utils.RSAEncryptionUtils;
-import org.joda.time.Seconds;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -69,7 +72,7 @@ public class EncryptionKeyStoreServiceImpl  implements EncryptionKeyStoreService
         if(validUpto.equals(-1)){
             return keys;
         } else {
-            Seconds seconds = Seconds.secondsBetween(keys.getCreatedDateTime(), DateUtils.getLocalDateTimeOfTenant());
+            Duration seconds = Duration.between(keys.getCreatedDateTime(), DateUtils.getLocalDateTimeOfTenant());
             if(seconds.getSeconds() < validUpto) {
                 return keys;
             }

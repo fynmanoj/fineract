@@ -121,6 +121,7 @@ public class SecurityConfig {
                 .securityMatcher(antMatcher("/api/**")).authorizeHttpRequests((auth) -> {
                     auth.requestMatchers(antMatcher(HttpMethod.OPTIONS, "/api/**")).permitAll() //
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/echo")).permitAll() //
+                            .requestMatchers(antMatcher(HttpMethod.GET, "/api/v1/crypt/publickey/test")).permitAll() // excluding rsa api
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/authentication")).permitAll() //
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/self/authentication")).permitAll() //
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/self/registration")).permitAll() //
