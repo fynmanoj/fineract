@@ -86,6 +86,14 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 
+    // addition of a lockout mechanism
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "is_account_locked", nullable = false)
+    private boolean isAccountLocked = false;
+
+
     @Column(name = "firsttime_login_remaining", nullable = false)
     private boolean firstTimeLoginRemaining;
 
@@ -464,6 +472,38 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
 
     public boolean getPasswordNeverExpires() {
         return this.passwordNeverExpires;
+    }
+
+    // incorrect password lock mechanism
+
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public boolean isAccountLocked() {
+        return isAccountLocked;
+    }
+
+    public void setAccountLocked(boolean accountLocked) {
+        this.isAccountLocked = accountLocked;
+    }
+
+    // lockout logic implementation
+
+    public void incrementFailedLoginAttempts() {
+        this.failedLoginAttempts++;
+        if (this.failedLoginAttempts >= 3) {
+            this.isAccountLocked = true;
+        }
+    }
+
+    public void resetFailedLoginAttempts() {
+        this.failedLoginAttempts = 0;
+        this.isAccountLocked = false;
     }
 
     public LocalDate getLastTimePasswordUpdated() {

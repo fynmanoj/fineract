@@ -18,8 +18,17 @@
  */
 package org.apache.fineract.infrastructure.security.domain;
 
-public interface PlatformUserRepository {
+import java.util.Optional;
+import org.apache.fineract.useradministration.domain.AppUser;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-    PlatformUser findByUsernameAndDeletedAndEnabled(String username, boolean deleted, boolean enabled);
+@Repository
+public interface PlatformUserRepository extends JpaRepository<AppUser, Long> {
+
+    AppUser findByUsernameAndDeletedAndEnabled(String username, boolean deleted, boolean enabled);
+
+    Optional<AppUser> findByUsername(String username);
 
 }
+

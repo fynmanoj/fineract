@@ -154,5 +154,6 @@ public class AuthenticationApiResource {
         }
 
         return this.apiJsonSerializerService.serialize(authenticatedUserData);
+
     }
 }
