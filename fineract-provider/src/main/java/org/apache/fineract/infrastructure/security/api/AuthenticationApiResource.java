@@ -39,6 +39,10 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import javax.crypto.Cipher;
 import lombok.RequiredArgsConstructor;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
@@ -57,6 +61,7 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
+import io.github.cdimascio.dotenv.Dotenv;
 
 @Component
 @ConditionalOnProperty("fineract.security.basicauth.enabled")
@@ -67,6 +72,7 @@ public class AuthenticationApiResource {
 
     @Value("${fineract.security.2fa.enabled}")
     private boolean twoFactorEnabled;
+    private static final Dotenv dotenv = Dotenv.load();
 
     public static class AuthenticateRequest {
 
@@ -101,6 +107,13 @@ public class AuthenticationApiResource {
             throw new IllegalArgumentException("Username or Password is null in JSON (see FINERACT-726) of POST to /authentication: "
                     + apiRequestBodyAsJson + "; username=" + request.username + ", password=" + request.password);
         }
+        
+        // decryption logic tries and catches method 
+        try {
+            request.password = decryptPassword(request.password);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Password decryption failed: " + e.getMessage(), e);
+        }
 
         AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
 
@@ -130,7 +143,7 @@ public class AuthenticationApiResource {
         principal.setFailedLoginAttempts(0);
         principal.setCredentialsNonExpired(true);
         this.springSecurityPlatformSecurityContext.saveAppUser(principal);
-
+        
         final Collection<String> permissions = new ArrayList<>();
         AuthenticatedUserData authenticatedUserData = new AuthenticatedUserData().setUsername(request.username).setPermissions(permissions);
 
@@ -181,5 +194,29 @@ public class AuthenticationApiResource {
 
         return this.apiJsonSerializerService.serialize(authenticatedUserData);
 
+    }
+
+    // The password decryption method 
+    private String decryptPassword(String encryptedPassword) throws Exception {
+        String privateKeyPEM = dotenv.get("FINERACT_RSA_PRIVATE_KEY");
+        if (privateKeyPEM == null) {
+            throw new IllegalStateException("Server private key not configured in FINERACT_RSA_PRIVATE_KEY");
+        }
+
+        privateKeyPEM = privateKeyPEM
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s+", "");
+
+        byte[] keyBytes = Base64.getDecoder().decode(privateKeyPEM);
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = keyFactory.generatePrivate(keySpec);
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+
+        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedPassword));
+        return new String(decryptedBytes, StandardCharsets.UTF_8);
     }
 }

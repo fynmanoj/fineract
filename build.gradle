@@ -667,6 +667,7 @@ configure(project.fineractCustomProjects) {
         implementation ("ch.qos.logback:logback-classic") {
             exclude(module: "slf4j-api")
         }
+        implementation 'io.github.cdimascio:java-dotenv:5.2.2'
 
         compileOnly('org.projectlombok:lombok')
         annotationProcessor('org.projectlombok:lombok')
