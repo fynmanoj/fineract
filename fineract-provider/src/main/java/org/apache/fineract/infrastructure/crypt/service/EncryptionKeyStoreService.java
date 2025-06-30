@@ -16,19 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.fineract.infrastructure.security.domain;
+package org.apache.fineract.infrastructure.crypt.service;
 
-import java.util.Optional;
-import org.apache.fineract.useradministration.domain.AppUser;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.apache.fineract.infrastructure.crypt.domain.EncryptionKeyPair;
 
-@Repository
-public interface PlatformUserRepository extends JpaRepository<AppUser, Long> {
-
-    AppUser findByUsernameAndDeletedAndEnabled(String username, boolean deleted, boolean enabled);
-
-    Optional<AppUser> findByUsername(String username);
-
+/**
+ * @author manoj
+ */
+public interface EncryptionKeyStoreService {
+    EncryptionKeyPair retrieveKey(String type);
 }
-

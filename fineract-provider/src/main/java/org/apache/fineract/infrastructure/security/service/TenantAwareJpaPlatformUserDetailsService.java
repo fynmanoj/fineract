@@ -20,6 +20,7 @@ package org.apache.fineract.infrastructure.security.service;
 
 import org.apache.fineract.infrastructure.security.domain.PlatformUser;
 import org.apache.fineract.infrastructure.security.domain.PlatformUserRepository;
+import org.apache.fineract.useradministration.domain.AppUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
@@ -41,16 +42,23 @@ public class TenantAwareJpaPlatformUserDetailsService implements PlatformUserDet
     @Cacheable(value = "usersByUsername", key = "T(org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil).getTenant().getTenantIdentifier().concat(#username+'ubu')")
     public UserDetails loadUserByUsername(final String username) throws UsernameNotFoundException, DataAccessException {
 
-        // Retrieve active users only
         final boolean deleted = false;
         final boolean enabled = true;
 
-        final PlatformUser appUser = this.platformUserRepository.findByUsernameAndDeletedAndEnabled(username, deleted, enabled);
+        final PlatformUser user = this.platformUserRepository.findByUsernameAndDeletedAndEnabled(username, deleted, enabled);
 
-        if (appUser == null) {
+        if (user == null) {
             throw new UsernameNotFoundException(username + ": not found");
+        }
+
+        AppUser appUser = (AppUser) user;
+
+        // 🔒 Lockout check
+        if (appUser.isAccountLocked()) {
+            throw new UsernameNotFoundException(username + ": account is locked due to multiple failed login attempts");
         }
 
         return appUser;
     }
+
 }

@@ -16,19 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.fineract.infrastructure.security.domain;
+package org.apache.fineract.infrastructure.crypt.data;
 
-import java.util.Optional;
-import org.apache.fineract.useradministration.domain.AppUser;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import java.util.Base64;
 
-@Repository
-public interface PlatformUserRepository extends JpaRepository<AppUser, Long> {
+/**
+ * @author manoj
+ */
+public class PublicKeyData {
+    public final String publicKey;
+    public final String version;
 
-    AppUser findByUsernameAndDeletedAndEnabled(String username, boolean deleted, boolean enabled);
 
-    Optional<AppUser> findByUsername(String username);
+    private PublicKeyData(String publicKey, String version) {
+        this.publicKey = publicKey;
+        this.version = version;
+    }
 
+    public static PublicKeyData instanceWithBase64Encoding(byte[] publicKey, String version){
+        return new PublicKeyData(Base64.getEncoder().encodeToString(publicKey), version);
+    }
 }
-
