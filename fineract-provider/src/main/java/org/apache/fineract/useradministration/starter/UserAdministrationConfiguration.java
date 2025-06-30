@@ -56,6 +56,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
@@ -73,13 +74,13 @@ public class UserAdministrationConfiguration {
     @Bean
     @ConditionalOnMissingBean(AppUserWritePlatformService.class)
     public AppUserWritePlatformService appUserWritePlatformService(PlatformSecurityContext context, UserDomainService userDomainService,
-            PlatformPasswordEncoder platformPasswordEncoder, PasswordEncoder passwordEncoder, AppUserRepository appUserRepository,
-            OfficeRepositoryWrapper officeRepositoryWrapper, RoleRepository roleRepository, UserDataValidator fromApiJsonDeserializer,
-            AppUserPreviousPasswordRepository appUserPreviewPasswordRepository, StaffRepositoryWrapper staffRepositoryWrapper,
-            ClientRepositoryWrapper clientRepositoryWrapper) {
+                                                                   PlatformPasswordEncoder platformPasswordEncoder, PasswordEncoder passwordEncoder, AppUserRepository appUserRepository,
+                                                                   OfficeRepositoryWrapper officeRepositoryWrapper, RoleRepository roleRepository, UserDataValidator fromApiJsonDeserializer,
+                                                                   AppUserPreviousPasswordRepository appUserPreviewPasswordRepository, StaffRepositoryWrapper staffRepositoryWrapper,
+                                                                   ClientRepositoryWrapper clientRepositoryWrapper, AuthenticationManager authenticationManager) {
         return new AppUserWritePlatformServiceJpaRepositoryImpl(context, userDomainService, platformPasswordEncoder, passwordEncoder,
                 appUserRepository, officeRepositoryWrapper, roleRepository, fromApiJsonDeserializer, appUserPreviewPasswordRepository,
-                staffRepositoryWrapper, clientRepositoryWrapper);
+                staffRepositoryWrapper, clientRepositoryWrapper,authenticationManager);
     }
 
     @Bean

@@ -2871,6 +2871,13 @@ public class CommandWrapperBuilder {
         return this;
     }
 
+    public CommandWrapperBuilder changePasswordCommand() {
+        this.entityName = "USER";
+        this.actionName = "CHANGE_PASSWORD";
+        this.href="/users/change-password";
+        return this;
+    }
+
     public CommandWrapperBuilder createPaymentType() {
         this.actionName = "CREATE";
         this.entityName = PaymentTypeApiResourceConstants.ENTITY_NAME;

@@ -41,11 +41,11 @@ public class CommandWrapper {
     private final Long creditBureauId;
     private final Long organisationCreditBureauId;
     private final String jobName;
-
     private final String idempotencyKey;
 
     @SuppressWarnings("unused")
     private Long templateId;
+
 
     public static CommandWrapper wrap(final String actionName, final String entityName, final Long resourceId, final Long subresourceId) {
         return new CommandWrapper(null, actionName, entityName, resourceId, subresourceId, null, null);
@@ -359,4 +359,6 @@ public class CommandWrapper {
     public String getJobName() {
         return jobName;
     }
+
+
 }
