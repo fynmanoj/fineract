@@ -18,6 +18,7 @@
  */
 package org.apache.fineract.useradministration.api;
 
+import com.google.gson.JsonParser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -53,17 +54,22 @@ import org.apache.fineract.infrastructure.bulkimport.data.GlobalEntityType;
 import org.apache.fineract.infrastructure.bulkimport.service.BulkImportWorkbookPopulatorService;
 import org.apache.fineract.infrastructure.bulkimport.service.BulkImportWorkbookService;
 import org.apache.fineract.infrastructure.core.api.ApiRequestParameterHelper;
+import org.apache.fineract.infrastructure.core.api.JsonCommand;
 import org.apache.fineract.infrastructure.core.data.CommandProcessingResult;
 import org.apache.fineract.infrastructure.core.data.UploadRequest;
 import org.apache.fineract.infrastructure.core.serialization.ApiRequestJsonSerializationSettings;
 import org.apache.fineract.infrastructure.core.serialization.DefaultToApiJsonSerializer;
+import org.apache.fineract.infrastructure.security.api.AuthenticationApiResource;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.organisation.office.data.OfficeData;
 import org.apache.fineract.organisation.office.service.OfficeReadPlatformService;
 import org.apache.fineract.useradministration.data.AppUserData;
+import org.apache.fineract.useradministration.data.ChangePasswordRequest;
 import org.apache.fineract.useradministration.service.AppUserReadPlatformService;
+import org.apache.fineract.useradministration.service.AppUserWritePlatformService;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Path("/v1/users")
@@ -229,21 +235,20 @@ public class UsersApiResource {
         return this.toApiJsonSerializer.serialize(importDocumentId);
     }
 
+    @Autowired
+    private AppUserWritePlatformService appUserWritePlatformService;
     @POST
     @Path("change-password")
     @Consumes({ MediaType.APPLICATION_JSON })
     @Produces({ MediaType.APPLICATION_JSON })
-    public String changePassword(@Parameter(hidden = true) final String apiRequestBodyAsJson) {
-        final CommandWrapper commandRequest = new CommandWrapperBuilder()
+    public String changePassword(@Parameter(hidden = true) final ChangePasswordRequest apiRequestBodyAsJson) {
+        //authenticationApiResource.authenticate(apiRequestBodyAsJson, false);
+        /*final CommandWrapper commandRequest = new CommandWrapperBuilder()
                 .changePasswordCommand()
                 .withJson(apiRequestBodyAsJson)
-                .withApiGetUrl("/users/change-password")
-                .withHref("/users/change-password")
-                .build();
+                .build();*/
 
-        //commandRequest.setApiGetUrl("/users/template");
-
-        final CommandProcessingResult result = this.commandsSourceWritePlatformService.logCommandSource(commandRequest);
+        final CommandProcessingResult result = this.appUserWritePlatformService.changeOwnPassword(apiRequestBodyAsJson);
         return this.toApiJsonSerializer.serialize(result);
     }
 

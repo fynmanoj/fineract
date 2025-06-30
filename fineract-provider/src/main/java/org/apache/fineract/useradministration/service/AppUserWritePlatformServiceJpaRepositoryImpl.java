@@ -352,7 +352,7 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
                         List.of(ApiParameterError.parameterError(
                                 "error.msg.passwords.do.not.match",
                                 "New password and confirm password do not match",
-                                "newPassword", // field name (can be "confirmPassword" too)
+                                "newPassword",
                                 request.getNewPassword()
                         )));
             }
@@ -370,7 +370,7 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
 
             this.appUserPreviewPasswordRepository.save(new AppUserPreviousPassword(user));
 
-            String encoded = this.passwordEncoder.encode(request.getNewPassword()); // ✅ Correct
+            String encoded = this.passwordEncoder.encode(request.getNewPassword());
 
             user.updatePasswordOnly(encoded);
             this.appUserRepository.saveAndFlush(user);
