@@ -83,6 +83,10 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     @Column(name = "nonexpired_credentials", nullable = false)
     private boolean credentialsNonExpired;
 
+    public void setCredentialsNonExpired(boolean credentialsNonExpired) {
+        this.credentialsNonExpired = credentialsNonExpired;
+    }
+
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 

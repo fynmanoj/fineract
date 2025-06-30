@@ -102,8 +102,34 @@ public class AuthenticationApiResource {
                     + apiRequestBodyAsJson + "; username=" + request.username + ", password=" + request.password);
         }
 
-        final Authentication authentication = new UsernamePasswordAuthenticationToken(request.username, request.password);
-        final Authentication authenticationCheck = this.customAuthenticationProvider.authenticate(authentication);
+        AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
+
+        if (!appUser.isCredentialsNonExpired()) {
+            throw new IllegalArgumentException("Account is locked due to multiple failed login attempts.");
+        }
+
+        final Authentication authentication = new UsernamePasswordAuthenticationToken(request.username.trim(), request.password.trim());
+
+        Authentication authenticationCheck;
+        try {
+            authenticationCheck = this.customAuthenticationProvider.authenticate(authentication);
+        } catch (Exception e) {
+
+            int failed = appUser.getFailedLoginAttempts() + 1;
+            appUser.setFailedLoginAttempts(failed);
+
+            if (failed >= 3) {
+                appUser.setCredentialsNonExpired(false);
+            }
+
+            this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
+            throw new IllegalArgumentException("Invalid username or password.");
+        }
+
+        final AppUser principal = (AppUser) authenticationCheck.getPrincipal();
+        principal.setFailedLoginAttempts(0);
+        principal.setCredentialsNonExpired(true);
+        this.springSecurityPlatformSecurityContext.saveAppUser(principal);
 
         final Collection<String> permissions = new ArrayList<>();
         AuthenticatedUserData authenticatedUserData = new AuthenticatedUserData().setUsername(request.username).setPermissions(permissions);
@@ -117,7 +143,7 @@ public class AuthenticationApiResource {
             final byte[] base64EncodedAuthenticationKey = Base64.getEncoder()
                     .encode((request.username + ":" + request.password).getBytes(StandardCharsets.UTF_8));
 
-            final AppUser principal = (AppUser) authenticationCheck.getPrincipal();
+            this.springSecurityPlatformSecurityContext.saveAppUser(principal);
             final Collection<RoleData> roles = new ArrayList<>();
             final Set<Role> userRoles = principal.getRoles();
             for (final Role role : userRoles) {
