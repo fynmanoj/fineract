@@ -228,4 +228,23 @@ public class UsersApiResource {
                 fileDetail, locale, dateFormat);
         return this.toApiJsonSerializer.serialize(importDocumentId);
     }
+
+    @POST
+    @Path("change-password")
+    @Consumes({ MediaType.APPLICATION_JSON })
+    @Produces({ MediaType.APPLICATION_JSON })
+    public String changePassword(@Parameter(hidden = true) final String apiRequestBodyAsJson) {
+        final CommandWrapper commandRequest = new CommandWrapperBuilder()
+                .changePasswordCommand()
+                .withJson(apiRequestBodyAsJson)
+                .withApiGetUrl("/users/change-password")
+                .withHref("/users/change-password")
+                .build();
+
+        //commandRequest.setApiGetUrl("/users/template");
+
+        final CommandProcessingResult result = this.commandsSourceWritePlatformService.logCommandSource(commandRequest);
+        return this.toApiJsonSerializer.serialize(result);
+    }
+
 }

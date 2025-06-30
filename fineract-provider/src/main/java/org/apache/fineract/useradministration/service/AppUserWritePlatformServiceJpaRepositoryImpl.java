@@ -20,6 +20,9 @@ package org.apache.fineract.useradministration.service;
 
 import static org.apache.fineract.useradministration.service.AppUserConstants.CLIENTS;
 import static org.apache.fineract.useradministration.service.UserDataValidator.PASSWORD;
+//import org.springframework.security.crypto.password.PasswordEncoder;
+import org.apache.fineract.infrastructure.security.service.PlatformPasswordEncoder;
+
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -51,6 +54,7 @@ import org.apache.fineract.organisation.staff.domain.StaffRepositoryWrapper;
 import org.apache.fineract.portfolio.client.domain.Client;
 import org.apache.fineract.portfolio.client.domain.ClientRepositoryWrapper;
 import org.apache.fineract.useradministration.api.AppUserApiConstant;
+import org.apache.fineract.useradministration.data.ChangePasswordRequest;
 import org.apache.fineract.useradministration.domain.AppUser;
 import org.apache.fineract.useradministration.domain.AppUserPreviousPassword;
 import org.apache.fineract.useradministration.domain.AppUserPreviousPasswordRepository;
@@ -67,7 +71,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.orm.jpa.JpaSystemException;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
@@ -87,6 +94,9 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
     private final AppUserPreviousPasswordRepository appUserPreviewPasswordRepository;
     private final StaffRepositoryWrapper staffRepositoryWrapper;
     private final ClientRepositoryWrapper clientRepositoryWrapper;
+    private final AuthenticationManager authenticationManager;
+
+
 
     @Override
     @Transactional
@@ -325,4 +335,53 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
         log.error("handleDataIntegrityIssues: Neither duplicate username nor existing user; unknown error occured", dve);
         return ErrorHandler.getMappable(dve, "error.msg.unknown.data.integrity.issue", "Unknown data integrity issue with resource.");
     }
+
+    @Override
+    @Transactional
+    public CommandProcessingResult changeOwnPassword(ChangePasswordRequest request) {
+        try {
+            Authentication auth = new UsernamePasswordAuthenticationToken(request.getUsername(), request.getCurrentPassword());
+            Authentication authResult = this.authenticationManager.authenticate(auth);
+
+
+            AppUser user = (AppUser) authResult.getPrincipal();
+
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new PlatformApiDataValidationException("validation.msg.validation.errors.exist",
+                        "Validation errors exist.",
+                        List.of(ApiParameterError.parameterError(
+                                "error.msg.passwords.do.not.match",
+                                "New password and confirm password do not match",
+                                "newPassword", // field name (can be "confirmPassword" too)
+                                request.getNewPassword()
+                        )));
+            }
+
+            List<AppUserPreviousPassword> recentPasswords = this.appUserPreviewPasswordRepository.findByUserId(
+                    user.getId(),
+                    PageRequest.of(0, AppUserApiConstant.numberOfPreviousPasswords, Sort.Direction.DESC, "removalDate", "id")
+            );
+
+            for (AppUserPreviousPassword prev : recentPasswords) {
+                if (this.passwordEncoder.matches(request.getNewPassword(), prev.getPassword())) {
+                    throw new PasswordPreviouslyUsedException();
+                }
+            }
+
+            this.appUserPreviewPasswordRepository.save(new AppUserPreviousPassword(user));
+
+            String encoded = this.passwordEncoder.encode(request.getNewPassword()); // ✅ Correct
+
+            user.updatePasswordOnly(encoded);
+            this.appUserRepository.saveAndFlush(user);
+
+            return new CommandProcessingResultBuilder()
+                    .withEntityId(user.getId())
+                    .build();
+        } catch (Exception ex) {
+            log.error("Error during password change", ex);
+            throw ErrorHandler.getMappable(ex, "error.msg.user.password.change.failed", "Password change failed.");
+        }
+    }
+
 }

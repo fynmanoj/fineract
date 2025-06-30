@@ -35,12 +35,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.Set;
+import java.util.*;
+
 import lombok.RequiredArgsConstructor;
+import okhttp3.Credentials;
+import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
+import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
 import org.apache.fineract.infrastructure.security.constants.TwoFactorConstants;
 import org.apache.fineract.infrastructure.security.data.AuthenticatedUserData;
@@ -52,6 +53,8 @@ import org.apache.fineract.useradministration.domain.Role;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.core.Authentication;
@@ -102,6 +105,7 @@ public class AuthenticationApiResource {
                     + apiRequestBodyAsJson + "; username=" + request.username + ", password=" + request.password);
         }
 
+
         AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
 
         if (!appUser.isCredentialsNonExpired()) {
@@ -123,7 +127,13 @@ public class AuthenticationApiResource {
             }
 
             this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
-            throw new IllegalArgumentException("Invalid username or password.");
+            if (e instanceof CredentialsExpiredException) {
+                throw validationError("error.msg.password.expired", "Your password has expired. Please change it.");
+            } else if (e  instanceof BadCredentialsException) {
+                throw validationError("error.msg.invalid.credentials", "Invalid username or password.");
+            }else{
+                throw new IllegalArgumentException("Invalid username or password.");
+            }
         }
 
         final AppUser principal = (AppUser) authenticationCheck.getPrincipal();
@@ -181,5 +191,10 @@ public class AuthenticationApiResource {
 
         return this.apiJsonSerializerService.serialize(authenticatedUserData);
 
+    }
+    private PlatformApiDataValidationException validationError(String code, String message) {
+        return new PlatformApiDataValidationException(List.of(
+                ApiParameterError.parameterError(code, message,null)
+        ));
     }
 }

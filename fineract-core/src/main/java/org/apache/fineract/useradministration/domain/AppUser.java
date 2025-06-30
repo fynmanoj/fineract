@@ -54,6 +54,7 @@ import org.apache.fineract.useradministration.service.AppUserConstants;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
+import org.apache.fineract.infrastructure.core.service.DateUtils;
 
 @Entity
 @Table(name = "m_appuser", uniqueConstraints = @UniqueConstraint(columnNames = { "username" }, name = "username_org"))
@@ -151,7 +152,7 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
         final boolean userEnabled = true;
         final boolean userAccountNonExpired = true;
         final boolean userCredentialsNonExpired = true;
-        final boolean userAccountNonLocked = true;
+        final boolean userAccountNonLocked = false;
         final boolean cannotChangePassword = false;
 
         final Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
@@ -414,6 +415,14 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     public String getUsername() {
         return this.username;
     }
+
+    public void updatePasswordOnly(String newEncodedPassword) {
+        this.password = newEncodedPassword;
+        this.firstTimeLoginRemaining = false;
+        this.passwordNeverExpires = false;
+        this.lastTimePasswordUpdated = DateUtils.getLocalDateTimeOfTenant().toLocalDate();
+    }
+
 
     public String getDisplayName() {
         if (this.staff != null && StringUtils.isNotBlank(this.staff.displayName())) {

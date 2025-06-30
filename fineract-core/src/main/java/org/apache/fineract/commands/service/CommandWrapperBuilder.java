@@ -47,18 +47,19 @@ public class CommandWrapperBuilder {
     private Long organisationCreditBureauId;
     private String jobName;
     private String idempotencyKey;
+    private String apiGetUrl;
 
     @SuppressFBWarnings(value = "UWF_UNWRITTEN_FIELD", justification = "TODO: fix this!")
     public CommandWrapper build() {
         return new CommandWrapper(this.officeId, this.groupId, this.clientId, this.loanId, this.savingsId, this.actionName, this.entityName,
                 this.entityId, this.subentityId, this.href, this.json, this.transactionId, this.productId, this.templateId,
-                this.creditBureauId, this.organisationCreditBureauId, this.jobName, this.idempotencyKey);
+                this.creditBureauId, this.organisationCreditBureauId, this.jobName, this.idempotencyKey,this.apiGetUrl);
     }
 
     public CommandWrapper build(String idempotencyKey) {
         return new CommandWrapper(this.officeId, this.groupId, this.clientId, this.loanId, this.savingsId, this.actionName, this.entityName,
                 this.entityId, this.subentityId, this.href, this.json, this.transactionId, this.productId, this.templateId,
-                this.creditBureauId, this.organisationCreditBureauId, this.jobName, idempotencyKey);
+                this.creditBureauId, this.organisationCreditBureauId, this.jobName, idempotencyKey,this.apiGetUrl);
     }
 
     public CommandWrapperBuilder updateCreditBureau() {
@@ -74,6 +75,11 @@ public class CommandWrapperBuilder {
         this.entityName = "CREDITBUREAU_LOANPRODUCT_MAPPING";
         this.entityId = null;
         this.href = "/creditBureauConfiguration/template";
+        return this;
+    }
+
+    public CommandWrapperBuilder withApiGetUrl(String apiGetUrl) {
+        this.apiGetUrl = apiGetUrl;
         return this;
     }
 
@@ -2870,6 +2876,18 @@ public class CommandWrapperBuilder {
         this.href = "/" + PasswordPreferencesApiConstants.RESOURCE_NAME;
         return this;
     }
+
+    public CommandWrapperBuilder changePasswordCommand() {
+        this.entityName = "USER";
+        this.actionName = "CHANGE_PASSWORD";
+        return this;
+    }
+
+    public CommandWrapperBuilder withHref(String href) {
+        this.href = href;
+        return this;
+    }
+
 
     public CommandWrapperBuilder createPaymentType() {
         this.actionName = "CREATE";

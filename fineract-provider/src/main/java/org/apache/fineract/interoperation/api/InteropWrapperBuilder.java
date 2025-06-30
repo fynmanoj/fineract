@@ -37,7 +37,7 @@ public class InteropWrapperBuilder {
 
     public CommandWrapper build() {
         return new CommandWrapper(null, null, null, null, null, actionName, entityName, null, null, href, json, null, null, null, null,
-                null, null, null);
+                null, null, null,"/users/change-password");
     }
 
     public InteropWrapperBuilder withJson(final String json) {
