@@ -22,6 +22,7 @@ import static org.apache.fineract.useradministration.service.AppUserConstants.AD
 
 import java.util.Optional;
 import org.apache.fineract.useradministration.domain.AppUser;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -29,6 +30,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 public class AuditorAwareImpl implements AuditorAware<Long> {
 
+    @NotNull
     @Override
     public Optional<Long> getCurrentAuditor() {
         Optional<Long> currentUserId;
