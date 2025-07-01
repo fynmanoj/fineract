@@ -45,6 +45,7 @@ import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidati
 import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
 import org.apache.fineract.infrastructure.security.constants.TwoFactorConstants;
 import org.apache.fineract.infrastructure.security.data.AuthenticatedUserData;
+import org.apache.fineract.infrastructure.security.service.SessionHandlerService;
 import org.apache.fineract.infrastructure.security.service.SpringSecurityPlatformSecurityContext;
 import org.apache.fineract.portfolio.client.service.ClientReadPlatformService;
 import org.apache.fineract.useradministration.data.RoleData;
@@ -82,6 +83,7 @@ public class AuthenticationApiResource {
     private final ToApiJsonSerializer<AuthenticatedUserData> apiJsonSerializerService;
     private final SpringSecurityPlatformSecurityContext springSecurityPlatformSecurityContext;
     private final ClientReadPlatformService clientReadPlatformService;
+    private final SessionHandlerService sessionHandlerService;
 
     @POST
     @Consumes({ MediaType.APPLICATION_JSON })
@@ -173,7 +175,7 @@ public class AuthenticationApiResource {
             Long userId = principal.getId();
             if (this.springSecurityPlatformSecurityContext.doesPasswordHasToBeRenewed(principal)) {
                 authenticatedUserData = new AuthenticatedUserData().setUsername(request.username).setUserId(userId)
-                        .setBase64EncodedAuthenticationKey(new String(base64EncodedAuthenticationKey, StandardCharsets.UTF_8))
+                        .setBase64EncodedAuthenticationKey(sessionHandlerService.getCustomAuthenticationKey(base64EncodedAuthenticationKey, userId, request.username))
                         .setAuthenticated(true).setShouldRenewPassword(true).setTwoFactorAuthenticationRequired(isTwoFactorRequired);
             } else {
 
@@ -181,7 +183,7 @@ public class AuthenticationApiResource {
                         .setOfficeName(officeName).setStaffId(staffId).setStaffDisplayName(staffDisplayName)
                         .setOrganisationalRole(organisationalRole).setRoles(roles).setPermissions(permissions).setUserId(principal.getId())
                         .setAuthenticated(true)
-                        .setBase64EncodedAuthenticationKey(new String(base64EncodedAuthenticationKey, StandardCharsets.UTF_8))
+                        .setBase64EncodedAuthenticationKey(sessionHandlerService.getCustomAuthenticationKey(base64EncodedAuthenticationKey, userId, request.username))
                         .setTwoFactorAuthenticationRequired(isTwoFactorRequired)
                         .setClients(returnClientList ? clientReadPlatformService.retrieveUserClients(userId) : null);
 

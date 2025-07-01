@@ -18,7 +18,6 @@
  */
 package org.apache.fineract.infrastructure.configuration.domain;
 
-import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -27,12 +26,13 @@ import org.apache.fineract.infrastructure.cache.domain.PlatformCache;
 import org.apache.fineract.infrastructure.cache.domain.PlatformCacheRepository;
 import org.apache.fineract.infrastructure.configuration.data.GlobalConfigurationPropertyData;
 import org.apache.fineract.infrastructure.configuration.exception.GlobalConfigurationPropertyNotFoundException;
-import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.useradministration.domain.Permission;
 import org.apache.fineract.useradministration.domain.PermissionRepository;
 import org.apache.fineract.useradministration.exception.PermissionNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
 
 @Slf4j
 @Service

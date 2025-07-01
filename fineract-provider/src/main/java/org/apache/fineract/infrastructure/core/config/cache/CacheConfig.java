@@ -105,8 +105,16 @@ public class CacheConfig {
                 CacheConfigurationBuilder.newCacheConfigurationBuilder(Object.class, Object.class, ResourcePoolsBuilder.heap(10000))
                         .withExpiry(ExpiryPolicyBuilder.timeToIdleExpiration(Duration.ofHours(2))).build());
 
+        javax.cache.configuration.Configuration<Object, Object> sessionTokenTemplate = Eh107Configuration.fromEhcacheCacheConfiguration(
+                CacheConfigurationBuilder.newCacheConfigurationBuilder(Object.class, Object.class, ResourcePoolsBuilder.heap(10000))
+                        .withExpiry(ExpiryPolicyBuilder.timeToIdleExpiration(Duration.ofMinutes(10))).build());
+
         if (cacheManager.getCache("userTFAccessToken") == null) {
             cacheManager.createCache("userTFAccessToken", accessTokenTemplate);
+        }
+
+        if (cacheManager.getCache("useSessionToken") == null) {
+            cacheManager.createCache("useSessionToken", sessionTokenTemplate);
         }
 
         return cacheManager;

@@ -25,16 +25,20 @@ public class UserSession {
 
     @Id
     @Column(name = "session_key")
-    String sessionKey;
+    private String sessionKey;
     @Column(name = "user_id")
-    Long userId;
+    private Long userId;
+
+    @Column(name = "user_name")
+    private String  userName;
 
     @Column(name = "is_valid")
-    Boolean isValid;
+    private Boolean isValid;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "last_used_at")
     private LocalDateTime lastUsedAt;
+
 }

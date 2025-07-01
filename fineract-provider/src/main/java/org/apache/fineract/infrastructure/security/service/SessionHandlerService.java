@@ -1,6 +1,7 @@
 package org.apache.fineract.infrastructure.security.service;
 
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * @author manoj
@@ -8,9 +9,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 
 public interface SessionHandlerService {
-    String getBase64EncodedAuthenticationKey(byte[] base64EncodedAuthenticationKey, Long userId);
 
-    boolean isSavedSession(String sessionKey);
+    @Transactional
+    String getCustomAuthenticationKey(final byte[]  base64EncodedAuthenticationKey, Long userId, String userName);
 
-    //UserDetails getUserFromSession(String sessionKey);
+    String validateAndExtractUsername(String sessionKey);
+
 }

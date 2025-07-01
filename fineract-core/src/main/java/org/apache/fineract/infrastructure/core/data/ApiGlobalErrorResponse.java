@@ -75,8 +75,8 @@ public class ApiGlobalErrorResponse {
         ApiGlobalErrorResponse response = new ApiGlobalErrorResponse();
         response.setHttpStatusCode(String.valueOf(statusCode));
         response.setUserMessageGlobalisationCode(msgCode);
-        response.setDeveloperMessage(developerMessage);
-        response.setDefaultUserMessage(defaultUserMessage);
+        //response.setDeveloperMessage(developerMessage);
+        //response.setDefaultUserMessage(defaultUserMessage);
         response.setErrors(errors);
         return response;
     }

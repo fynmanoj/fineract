@@ -42,6 +42,7 @@ import org.apache.fineract.infrastructure.instancemode.filter.FineractInstanceMo
 import org.apache.fineract.infrastructure.jobs.filter.LoanCOBApiFilter;
 import org.apache.fineract.infrastructure.jobs.filter.LoanCOBFilterHelper;
 import org.apache.fineract.infrastructure.security.data.PlatformRequestLog;
+import org.apache.fineract.infrastructure.security.filter.CustomTokenAuthenticationFilter;
 import org.apache.fineract.infrastructure.security.filter.InsecureTwoFactorAuthenticationFilter;
 import org.apache.fineract.infrastructure.security.filter.TenantAwareBasicAuthenticationFilter;
 import org.apache.fineract.infrastructure.security.filter.TwoFactorAuthenticationFilter;
@@ -68,6 +69,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 @Configuration
@@ -80,6 +82,8 @@ public class SecurityConfig {
 
     @Autowired
     private TenantAwareJpaPlatformUserDetailsService userDetailsService;
+    @Autowired
+    private CustomTokenAuthenticationFilter customTokenAuthenticationFilter;
 
     @Autowired
     private FineractProperties fineractProperties;
@@ -135,6 +139,7 @@ public class SecurityConfig {
                 }).httpBasic((httpBasic) -> httpBasic.authenticationEntryPoint(basicAuthenticationEntryPoint())) //
                 .csrf((csrf) -> csrf.disable()) // NOSONAR only creating a service that is used by non-browser clients
                 .sessionManagement((smc) -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //
+                .addFilterBefore(customTokenAuthenticationFilter, BasicAuthenticationFilter.class)
                 .addFilterBefore(tenantAwareBasicAuthenticationFilter(), SecurityContextHolderFilter.class) //
                 .addFilterAfter(requestResponseFilter(), ExceptionTranslationFilter.class) //
                 .addFilterAfter(correlationHeaderFilter(), RequestResponseFilter.class) //

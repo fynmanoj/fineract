@@ -30,6 +30,7 @@ import javax.net.ssl.X509TrustManager;
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -64,11 +65,12 @@ public final class ProcessorHelper {
      * useful during development e.g. when using self-signed certificates, it should never be enabled in production (due
      * to "man in the middle").
      */
-    private final boolean insecureHttpClient = Boolean.getBoolean("fineract.insecureHttpClient");
+    private boolean insecureHttpClient;
     private final SSLContext insecureSSLContext;
 
-    public ProcessorHelper() throws KeyManagementException, NoSuchAlgorithmException {
-        if (insecureHttpClient) {
+    public ProcessorHelper( @Value("${fineract.insecureHttpClient:false}") Boolean insecureHttpClient) throws KeyManagementException, NoSuchAlgorithmException {
+        this.insecureHttpClient = insecureHttpClient != null ? insecureHttpClient : false;
+        if (this.insecureHttpClient) {
             insecureSSLContext = createInsecureSSLContext();
         } else {
             insecureSSLContext = null;
