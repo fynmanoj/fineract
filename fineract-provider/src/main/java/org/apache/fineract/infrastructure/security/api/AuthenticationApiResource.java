@@ -43,6 +43,8 @@ import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
+import org.apache.fineract.infrastructure.crypt.service.EncryptionKeyStoreService;
+import org.apache.fineract.infrastructure.crypt.utils.RSAEncryptionUtils;
 import org.apache.fineract.infrastructure.security.constants.TwoFactorConstants;
 import org.apache.fineract.infrastructure.security.data.AuthenticatedUserData;
 import org.apache.fineract.infrastructure.security.service.SessionHandlerService;
@@ -69,6 +71,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuthenticationApiResource {
 
+    public static final String AUTH = "authentication";
+
     @Value("${fineract.security.2fa.enabled}")
     private boolean twoFactorEnabled;
 
@@ -84,6 +88,8 @@ public class AuthenticationApiResource {
     private final SpringSecurityPlatformSecurityContext springSecurityPlatformSecurityContext;
     private final ClientReadPlatformService clientReadPlatformService;
     private final SessionHandlerService sessionHandlerService;
+    private final EncryptionKeyStoreService encryptionKeyStoreService;
+    private final RSAEncryptionUtils rsaEncryptionUtils;
 
     @POST
     @Consumes({ MediaType.APPLICATION_JSON })
@@ -108,6 +114,9 @@ public class AuthenticationApiResource {
         }
 
 
+        request.password = rsaEncryptionUtils.decryptUsingRSA(request.password,
+                    encryptionKeyStoreService.retrieveKey(AUTH).getPrivateKey(), true);
+
         AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
 
         if (!appUser.isCredentialsNonExpired()) {
@@ -121,12 +130,7 @@ public class AuthenticationApiResource {
             authenticationCheck = this.customAuthenticationProvider.authenticate(authentication);
         } catch (Exception e) {
 
-            int failed = appUser.getFailedLoginAttempts() + 1;
-            appUser.setFailedLoginAttempts(failed);
-
-            if (failed >= 3) {
-                appUser.setCredentialsNonExpired(false);
-            }
+            appUser.incrementFailedLoginAttempts();
 
             this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
             if (e instanceof CredentialsExpiredException) {
@@ -139,7 +143,7 @@ public class AuthenticationApiResource {
         }
 
         final AppUser principal = (AppUser) authenticationCheck.getPrincipal();
-        principal.setFailedLoginAttempts(0);
+        principal.resetFailedLoginAttempts();
         principal.setCredentialsNonExpired(true);
         this.springSecurityPlatformSecurityContext.saveAppUser(principal);
 

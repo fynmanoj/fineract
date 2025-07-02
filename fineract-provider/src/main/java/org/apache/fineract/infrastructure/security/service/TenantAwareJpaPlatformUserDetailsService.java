@@ -54,7 +54,7 @@ public class TenantAwareJpaPlatformUserDetailsService implements PlatformUserDet
         AppUser appUser = (AppUser) user;
 
         // 🔒 Lockout check
-        if (appUser.isAccountLocked()) {
+        if (!appUser.isAccountNonLocked()) {
             throw new UsernameNotFoundException(username + ": account is locked due to multiple failed login attempts");
         }
 
