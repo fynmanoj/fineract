@@ -226,7 +226,6 @@ bootRun {
         implementation 'org.mariadb.jdbc:mariadb-java-client'
         implementation 'org.postgresql:postgresql'
         implementation 'io.github.cdimascio:java-dotenv:5.2.2'
-
     }
 }
 

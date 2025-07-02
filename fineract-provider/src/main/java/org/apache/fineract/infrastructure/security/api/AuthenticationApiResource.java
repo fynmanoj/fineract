@@ -107,7 +107,6 @@ public class AuthenticationApiResource {
             throw new IllegalArgumentException("Username or Password is null in JSON (see FINERACT-726) of POST to /authentication: "
                     + apiRequestBodyAsJson + "; username=" + request.username + ", password=" + request.password);
         }
-        
         // decryption logic tries and catches method 
         try {
             request.password = decryptPassword(request.password);
@@ -195,7 +194,6 @@ public class AuthenticationApiResource {
         return this.apiJsonSerializerService.serialize(authenticatedUserData);
 
     }
-
     // The password decryption method 
     private String decryptPassword(String encryptedPassword) throws Exception {
         String privateKeyPEM = dotenv.get("FINERACT_RSA_PRIVATE_KEY");

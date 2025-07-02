@@ -668,7 +668,6 @@ configure(project.fineractCustomProjects) {
             exclude(module: "slf4j-api")
         }
 
-
         compileOnly('org.projectlombok:lombok')
         annotationProcessor('org.projectlombok:lombok')
         annotationProcessor('org.mapstruct:mapstruct-processor')
