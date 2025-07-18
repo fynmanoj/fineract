@@ -340,23 +340,25 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
     @Transactional
     public CommandProcessingResult changeOwnPassword(ChangePasswordRequest request) {
         try {
+            // Authenticate with current password
             Authentication auth = new UsernamePasswordAuthenticationToken(request.getUsername(), request.getCurrentPassword());
             Authentication authResult = this.authenticationManager.authenticate(auth);
 
-
             AppUser user = (AppUser) authResult.getPrincipal();
 
+            // Password match check
             if (!request.getNewPassword().equals(request.getConfirmPassword())) {
                 throw new PlatformApiDataValidationException("validation.msg.validation.errors.exist",
                         "Validation errors exist.",
                         List.of(ApiParameterError.parameterError(
-                                "error.msg.passwords.do.not.match",
+                                "validation.msg.passwords.do.not.match",
                                 "New password and confirm password do not match",
                                 "newPassword",
                                 request.getNewPassword()
                         )));
             }
 
+            // Prevent reuse of recent passwords
             List<AppUserPreviousPassword> recentPasswords = this.appUserPreviewPasswordRepository.findByUserId(
                     user.getId(),
                     PageRequest.of(0, AppUserApiConstant.numberOfPreviousPasswords, Sort.Direction.DESC, "removalDate", "id")
@@ -364,20 +366,29 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
 
             for (AppUserPreviousPassword prev : recentPasswords) {
                 if (this.passwordEncoder.matches(request.getNewPassword(), prev.getPassword())) {
-                    throw new PasswordPreviouslyUsedException();
+                    throw new PlatformApiDataValidationException("validation.msg.validation.errors.exist",
+                            "Validation errors exist.",
+                            List.of(ApiParameterError.parameterError(
+                                    "validation.msg.password.previously.used",
+                                    "This password was used recently. Please choose a different password.",
+                                    "newPassword",
+                                    request.getNewPassword()
+                            )));
                 }
             }
 
             this.appUserPreviewPasswordRepository.save(new AppUserPreviousPassword(user));
 
             String encoded = this.passwordEncoder.encode(request.getNewPassword());
-
             user.updatePasswordOnly(encoded);
             this.appUserRepository.saveAndFlush(user);
 
             return new CommandProcessingResultBuilder()
                     .withEntityId(user.getId())
                     .build();
+
+        } catch (PlatformApiDataValidationException e) {
+            throw e;
         } catch (Exception ex) {
             log.error("Error during password change", ex);
             throw ErrorHandler.getMappable(ex, "error.msg.user.password.change.failed", "Password change failed.");
