@@ -47,6 +47,7 @@ import org.apache.fineract.infrastructure.core.service.PlatformEmailSendExceptio
 import org.apache.fineract.infrastructure.security.exception.ResetPasswordException;
 import org.apache.fineract.infrastructure.security.service.PlatformPasswordEncoder;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
+import org.apache.fineract.infrastructure.security.utils.PasswordValidator;
 import org.apache.fineract.organisation.office.domain.Office;
 import org.apache.fineract.organisation.office.domain.OfficeRepositoryWrapper;
 import org.apache.fineract.organisation.staff.domain.Staff;
@@ -357,6 +358,10 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
                                 request.getNewPassword()
                         )));
             }
+
+            // Password criteria
+            PasswordValidator.validate(request.getNewPassword());
+
 
             // Prevent reuse of recent passwords
             List<AppUserPreviousPassword> recentPasswords = this.appUserPreviewPasswordRepository.findByUserId(
