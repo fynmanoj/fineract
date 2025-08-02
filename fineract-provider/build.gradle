@@ -154,6 +154,7 @@ dependencies {
     driver 'org.mariadb.jdbc:mariadb-java-client'
     driver 'org.postgresql:postgresql'
     driver 'mysql:mysql-connector-java:8.0.33'
+    implementation 'com.google.code.gson:gson:2.10.1'
 }
 
 URLClassLoader loader = GroovyObject.class.classLoader
