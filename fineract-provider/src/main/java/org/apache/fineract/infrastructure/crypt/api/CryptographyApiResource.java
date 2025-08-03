@@ -22,42 +22,29 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
 import org.apache.fineract.infrastructure.crypt.data.PublicKeyData;
-import org.apache.fineract.infrastructure.crypt.service.CryptographyReadPlatformService;
+import org.apache.fineract.infrastructure.security.service.PublicKeyService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-
-/**
- * @author manoj
- */
 @Path("/v1/crypt")
 @Component
-//@Scope("singleton")
-//@Api(tags = {"Cryptography"})
-//@SwaggerDefinition(tags = {
-       // @Tag(name = "Cryptography", description = "Provides RSA public keys for various modules(types)")
-//})
 public class CryptographyApiResource {
 
     private final ToApiJsonSerializer<PublicKeyData> toApiJsonSerializer;
-    private final CryptographyReadPlatformService cryptographyReadPlatformService;
+    private final PublicKeyService publicKeyService;
 
     @Autowired
     public CryptographyApiResource(ToApiJsonSerializer<PublicKeyData> toApiJsonSerializer,
-                                   CryptographyReadPlatformService cryptographyReadPlatformService) {
+                                   PublicKeyService publicKeyService) {
         this.toApiJsonSerializer = toApiJsonSerializer;
-        this.cryptographyReadPlatformService = cryptographyReadPlatformService;
+        this.publicKeyService = publicKeyService;
     }
 
     @GET
     @Path("publickey/{type}")
     @Consumes({ MediaType.APPLICATION_JSON })
     @Produces({ MediaType.APPLICATION_JSON })
-    //@ApiOperation(value = "Provides RSA public key for {type}", notes = "Key is provided with a version ")
-    //@ApiResponses({@ApiResponse(code = 200, message = "RSA public key")})
-    public String getRsaPublicKey(@PathParam("type")  final String type) {
-        return this.toApiJsonSerializer.serialize(this.cryptographyReadPlatformService.getPublicRsaKey(type));
+    public String getRsaPublicKey(@PathParam("type") final String type) {
+        return this.toApiJsonSerializer.serialize(this.publicKeyService.getPublicKey());
     }
-
 }
