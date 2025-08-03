@@ -155,6 +155,7 @@ dependencies {
     driver 'org.postgresql:postgresql'
     driver 'mysql:mysql-connector-java:8.0.33'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'com.google.code.gson:gson:2.10.1'
 }
 
 URLClassLoader loader = GroovyObject.class.classLoader
