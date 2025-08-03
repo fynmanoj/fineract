@@ -128,6 +128,8 @@ public class SecurityConfig {
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/users/unlock-user")).authenticated()
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/users/change-password")).permitAll()
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/users/first-time-password-change")).permitAll()
+                            .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/users/forgot-password/request")).permitAll()
+                            .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/users/forgot-password/verify")).permitAll()
                             .requestMatchers(antMatcher(HttpMethod.GET, "/api/v1/crypt/publickey/authentication")).permitAll() // excluding rsa api
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/authentication")).permitAll() //
                             .requestMatchers(antMatcher(HttpMethod.POST, "/api/*/self/authentication")).permitAll() //

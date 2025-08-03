@@ -16,25 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.fineract.useradministration.api;
+package org.apache.fineract.useradministration.data;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
 
-@Schema(description = "UnlockUserRequest")
-public class UnlockUserRequest {
+public class OtpEntry {
 
-    @Schema(description = "The username of the user to unlock", example = "demo")
-    private String username;
+    private final String otp;
+    private final Instant generatedAt;
 
-    public UnlockUserRequest() {
-        System.out.println(" UnlockUserRequest instantiated");
+    public OtpEntry(String otp, Instant generatedAt) {
+        this.otp = otp;
+        this.generatedAt = generatedAt;
     }
 
-    public String getUsername() {
-        return username;
+    public String getOtp() {
+        return otp;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public Instant getGeneratedAt() {
+        return generatedAt;
     }
 }

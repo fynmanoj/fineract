@@ -42,7 +42,12 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.io.InputStream;
+import java.time.Instant;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.fineract.commands.domain.CommandWrapper;
@@ -64,6 +69,7 @@ import org.apache.fineract.organisation.office.service.OfficeReadPlatformService
 import org.apache.fineract.useradministration.data.AppUserData;
 import org.apache.fineract.useradministration.data.ChangePasswordRequest;
 import org.apache.fineract.useradministration.data.FirstTimePasswordChangeRequest;
+import org.apache.fineract.useradministration.data.OtpEntry;
 import org.apache.fineract.useradministration.domain.AppUser;
 import org.apache.fineract.useradministration.domain.AppUserRepository;
 import org.apache.fineract.useradministration.service.AppUserReadPlatformService;
@@ -103,6 +109,10 @@ public class UsersApiResource {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final AppUserRepository appUserRepository;
+    //for testing purposes only
+    // Temporary in-memory OTP cache (for testing only)
+    private final Map<String, OtpEntry> otpCache = new ConcurrentHashMap<>();
+
 
 
     @GET
@@ -346,4 +356,110 @@ public class UsersApiResource {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Unexpected error: " + e.getMessage()).build();
         }
     }
+
+    @POST
+    @Path("forgot-password/request")
+    @Consumes({ MediaType.APPLICATION_JSON })
+    @Produces({ MediaType.APPLICATION_JSON })
+    public Response requestForgotPasswordOtp(Map<String, String> request) {
+        String username = request.get("username");
+        String email = request.get("email");
+
+        if (username == null || email == null || username.isBlank() || email.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Both 'username' and 'email' are required")).build();
+        }
+
+        Optional<AppUser> optionalUser = appUserRepository.findByUsername(username);
+        if (optionalUser.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).entity(Map.of("error", "User not found")).build();
+        }
+
+        AppUser user = optionalUser.get();
+
+        if (!user.getEmail().equalsIgnoreCase(email)) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("error", "Email does not match")).build();
+        }
+
+        // Generate OTP and store it temporarily (for testing, use static map)
+        String otp = String.valueOf((int)(100000 + Math.random() * 900000)); // 6-digit OTP
+        otpCache.put(username, new OtpEntry(otp, Instant.now()));
+
+        // Return OTP in response for now (don't do this in production!)
+        return Response.ok(Map.of(
+                "message", "OTP generated successfully",
+                "otp", otp
+        )).build();
+    }
+
+    @POST
+    @Path("forgot-password/verify")
+    @Consumes({ MediaType.APPLICATION_JSON })
+    @Produces({ MediaType.APPLICATION_JSON })
+    public Response verifyOtpAndResetPassword(Map<String, String> request) {
+        String username = request.get("username");
+        String otp = request.get("otp");
+        String newPassword = request.get("newPassword");
+        String confirmPassword = request.get("confirmPassword");
+
+        if (username == null || otp == null || newPassword == null || confirmPassword == null ||
+                username.isBlank() || otp.isBlank() || newPassword.isBlank() || confirmPassword.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "All fields (username, otp, newPassword, confirmPassword) are required")).build();
+        }
+
+        Optional<AppUser> optionalUser = appUserRepository.findByUsername(username);
+        if (optionalUser.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(Map.of("error", "User not found")).build();
+        }
+
+        AppUser user = optionalUser.get();
+
+        // Check OTP
+        OtpEntry otpEntry = otpCache.get(username);
+        if (otpEntry == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "No OTP request found for this user")).build();
+        }
+
+        if (!otpEntry.getOtp().equals(otp)) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity(Map.of("error", "Invalid OTP")).build();
+        }
+
+        // Check if OTP is expired (valid for 10 minutes)
+        if (Duration.between(otpEntry.getGeneratedAt(), Instant.now()).toMinutes() > 10) {
+            otpCache.remove(username);
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity(Map.of("error", "OTP expired")).build();
+        }
+
+        // Check if passwords match
+        if (!newPassword.equals(confirmPassword)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Passwords do not match")).build();
+        }
+
+        // Update the password
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        user.updatePasswordOnly(encodedPassword);
+
+        // Lock account for 5 minutes
+        user.setAccountNonLocked(false);
+        user.setCredentialsLockedAt(LocalDateTime.ofInstant(Instant.now(), ZoneId.systemDefault()));
+        user.setFailedLoginAttempts(0);
+
+        appUserRepository.save(user);
+        otpCache.remove(username);
+
+        // Log to console
+        System.out.println("✅ Password reset successful for user: " + username);
+        System.out.println("🔒 Account temporarily locked for 5 minutes after password reset.");
+
+        return Response.ok(Map.of(
+                "message", "Password reset successful. Account is temporarily locked for 5 minutes for security."
+        )).build();
+    }
+
 }
