@@ -60,10 +60,12 @@ import org.apache.fineract.infrastructure.core.api.ApiRequestParameterHelper;
 import org.apache.fineract.infrastructure.core.api.JsonCommand;
 import org.apache.fineract.infrastructure.core.data.CommandProcessingResult;
 import org.apache.fineract.infrastructure.core.data.UploadRequest;
+import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.serialization.ApiRequestJsonSerializationSettings;
 import org.apache.fineract.infrastructure.core.serialization.DefaultToApiJsonSerializer;
 import org.apache.fineract.infrastructure.security.api.AuthenticationApiResource;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
+import org.apache.fineract.infrastructure.security.utils.PasswordValidator;
 import org.apache.fineract.organisation.office.data.OfficeData;
 import org.apache.fineract.organisation.office.service.OfficeReadPlatformService;
 import org.apache.fineract.useradministration.data.AppUserData;
@@ -293,7 +295,15 @@ public class UsersApiResource {
                 return Response.status(Response.Status.BAD_REQUEST).entity("Passwords do not match").build();
             }
 
-            // 4. Update password
+            // 4. Validate password strength
+            try {
+                PasswordValidator.validate(request.getNewPassword());
+            } catch (PlatformApiDataValidationException e) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(e.getErrors()).build();
+            }
+
+            // 5. Update password
             String encodedPassword = passwordEncoder.encode(request.getNewPassword());
             user.updatePasswordOnly(encodedPassword);
 
@@ -439,6 +449,14 @@ public class UsersApiResource {
         if (!newPassword.equals(confirmPassword)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(Map.of("error", "Passwords do not match")).build();
+        }
+
+        // 💪 Validate password strength
+        try {
+            PasswordValidator.validate(newPassword);
+        } catch (PlatformApiDataValidationException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Weak password", "details", e.getErrors())).build();
         }
 
         // Update the password
