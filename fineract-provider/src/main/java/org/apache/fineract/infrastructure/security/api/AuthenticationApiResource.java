@@ -115,8 +115,8 @@ public class AuthenticationApiResource {
         }
 
 
-        //request.password = rsaEncryptionUtils.decryptUsingRSA(request.password,
-                    //encryptionKeyStoreService.retrieveKey(AUTH).getPrivateKey(), true);
+        request.password = rsaEncryptionUtils.decryptUsingRSA(request.password,
+                    encryptionKeyStoreService.retrieveKey(AUTH).getPrivateKey(), true);
 
         AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
 
