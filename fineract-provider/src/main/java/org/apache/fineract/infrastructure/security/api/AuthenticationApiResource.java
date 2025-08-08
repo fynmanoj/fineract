@@ -35,6 +35,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import lombok.RequiredArgsConstructor;
@@ -119,8 +120,25 @@ public class AuthenticationApiResource {
 
         AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
 
+        // 1. Password expiry check
         if (!appUser.isCredentialsNonExpired()) {
-            throw new IllegalArgumentException("Account is locked due to multiple failed login attempts.");
+            throw new IllegalArgumentException("Your password has expired. Please reset it.");
+        }
+
+        // 2. Temporary lockout check
+        if (!appUser.isAccountNonLocked()) {
+            if (appUser.getCredentialsLockedAt() != null) {
+                LocalDateTime unlockTime = appUser.getCredentialsLockedAt().plusMinutes(1);
+                if (LocalDateTime.now().isAfter(unlockTime)) {
+                    // Unlock the account
+                    appUser.setAccountNonLocked(true);
+                    appUser.setFailedLoginAttempts(0);
+                    appUser.setCredentialsLockedAt(null);
+                    this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
+                } else {
+                    throw new IllegalArgumentException("Account is temporarily locked. Try again after 10 minutes.");
+                }
+            }
         }
 
         final Authentication authentication = new UsernamePasswordAuthenticationToken(request.username.trim(), request.password.trim());
@@ -129,15 +147,26 @@ public class AuthenticationApiResource {
         try {
             authenticationCheck = this.customAuthenticationProvider.authenticate(authentication);
         } catch (Exception e) {
-
             appUser.incrementFailedLoginAttempts();
 
+            // If user reached max attempts, lock the account
+            if (appUser.getFailedLoginAttempts() >= 3) {
+                appUser.setAccountNonLocked(false);
+                appUser.setCredentialsLockedAt(LocalDateTime.now());
+
+                this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
+
+                throw validationError("error.msg.account.locked",
+                        "Invalid username or password. Account is temporarily locked for 10 minutes.");
+            }
+            // Save after incrementing but not locked yet
             this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
+
             if (e instanceof CredentialsExpiredException) {
                 throw validationError("error.msg.password.expired", "Your password has expired. Please change it.");
-            } else if (e  instanceof BadCredentialsException) {
+            } else if (e instanceof BadCredentialsException) {
                 throw validationError("error.msg.invalid.credentials", "Invalid username or password.");
-            }else{
+            } else {
                 throw new IllegalArgumentException("Invalid username or password.");
             }
         }

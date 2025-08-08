@@ -30,6 +30,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -80,6 +81,9 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
 
     @Column(name = "nonlocked", nullable = false)
     private boolean accountNonLocked;
+
+    @Column(name = "credentials_locked_at")
+    private LocalDateTime credentialsLockedAt;
 
     @Column(name = "nonexpired_credentials", nullable = false)
     private boolean credentialsNonExpired;
@@ -489,6 +493,19 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
         this.failedLoginAttempts = failedLoginAttempts;
     }
 
+    // For timed locked-out mechanism
+
+    public LocalDateTime getCredentialsLockedAt() {
+        return credentialsLockedAt;
+    }
+
+    public void setCredentialsLockedAt(LocalDateTime credentialsLockedAt) {
+        this.credentialsLockedAt = credentialsLockedAt;
+    }
+
+    public void setAccountNonLocked(boolean accountNonLocked) {
+        this.accountNonLocked = accountNonLocked;
+    }
 
     // lockout logic implementation
 
@@ -496,6 +513,7 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
         this.failedLoginAttempts++;
         if (this.failedLoginAttempts >= 3) {
             this.accountNonLocked = false;
+            this.credentialsLockedAt = LocalDateTime.now();
         }
     }
 

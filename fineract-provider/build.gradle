@@ -150,10 +150,19 @@ project.ext.pgPassword='postgres'
 configurations {
     driver
 }
+repositories {
+    mavenCentral()
+}
 dependencies {
+    implementation 'com.bucket4j:bucket4j:8.10.1'
+    implementation 'com.bucket4j:bucket4j-core:8.10.1'
+    implementation 'com.bucket4j:bucket4j_jdk17-core:8.14.0'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     driver 'org.mariadb.jdbc:mariadb-java-client'
     driver 'org.postgresql:postgresql'
     driver 'mysql:mysql-connector-java:8.0.33'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'com.google.code.gson:gson:2.10.1'
 }
 
 URLClassLoader loader = GroovyObject.class.classLoader
