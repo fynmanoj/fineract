@@ -44,6 +44,8 @@ import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
+import org.apache.fineract.infrastructure.crypt.service.EncryptionKeyStoreService;
+import org.apache.fineract.infrastructure.crypt.utils.RSAEncryptionUtils;
 import org.apache.fineract.infrastructure.security.constants.TwoFactorConstants;
 import org.apache.fineract.infrastructure.security.data.AuthenticatedUserData;
 import org.apache.fineract.infrastructure.security.service.SessionHandlerService;
@@ -87,6 +89,8 @@ public class AuthenticationApiResource {
     private final SpringSecurityPlatformSecurityContext springSecurityPlatformSecurityContext;
     private final ClientReadPlatformService clientReadPlatformService;
     private final SessionHandlerService sessionHandlerService;
+    private final EncryptionKeyStoreService encryptionKeyStoreService;
+    private final RSAEncryptionUtils rsaEncryptionUtils;
 
     @POST
     @Consumes({ MediaType.APPLICATION_JSON })
@@ -97,7 +101,7 @@ public class AuthenticationApiResource {
             @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = AuthenticationApiResourceSwagger.PostAuthenticationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Unauthenticated. Please login") })
     public String authenticate(@Parameter(hidden = true) final String apiRequestBodyAsJson,
-            @QueryParam("returnClientList") @DefaultValue("false") boolean returnClientList) {
+                               @QueryParam("returnClientList") @DefaultValue("false") boolean returnClientList) {
         // TODO FINERACT-819: sort out Jersey so JSON conversion does not have
         // to be done explicitly via GSON here, but implicit by arg
         AuthenticateRequest request = new Gson().fromJson(apiRequestBodyAsJson, AuthenticateRequest.class);
@@ -109,6 +113,10 @@ public class AuthenticationApiResource {
             throw new IllegalArgumentException("Username or Password is null in JSON (see FINERACT-726) of POST to /authentication: "
                     + apiRequestBodyAsJson + "; username=" + request.username + ", password=" + request.password);
         }
+
+
+        request.password = rsaEncryptionUtils.decryptUsingRSA(request.password,
+                encryptionKeyStoreService.retrieveKey(AUTH).getPrivateKey(), true);
 
         AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
 
