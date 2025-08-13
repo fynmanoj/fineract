@@ -35,6 +35,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,8 @@ import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
+import org.apache.fineract.infrastructure.crypt.service.EncryptionKeyStoreService;
+import org.apache.fineract.infrastructure.crypt.utils.RSAEncryptionUtils;
 import org.apache.fineract.infrastructure.security.constants.TwoFactorConstants;
 import org.apache.fineract.infrastructure.security.data.AuthenticatedUserData;
 import org.apache.fineract.infrastructure.security.service.SessionHandlerService;
@@ -69,6 +72,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuthenticationApiResource {
 
+    public static final String AUTH = "authentication";
+
     @Value("${fineract.security.2fa.enabled}")
     private boolean twoFactorEnabled;
 
@@ -84,6 +89,8 @@ public class AuthenticationApiResource {
     private final SpringSecurityPlatformSecurityContext springSecurityPlatformSecurityContext;
     private final ClientReadPlatformService clientReadPlatformService;
     private final SessionHandlerService sessionHandlerService;
+    private final EncryptionKeyStoreService encryptionKeyStoreService;
+    private final RSAEncryptionUtils rsaEncryptionUtils;
 
     @POST
     @Consumes({ MediaType.APPLICATION_JSON })
@@ -94,7 +101,7 @@ public class AuthenticationApiResource {
             @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = AuthenticationApiResourceSwagger.PostAuthenticationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Unauthenticated. Please login") })
     public String authenticate(@Parameter(hidden = true) final String apiRequestBodyAsJson,
-            @QueryParam("returnClientList") @DefaultValue("false") boolean returnClientList) {
+                               @QueryParam("returnClientList") @DefaultValue("false") boolean returnClientList) {
         // TODO FINERACT-819: sort out Jersey so JSON conversion does not have
         // to be done explicitly via GSON here, but implicit by arg
         AuthenticateRequest request = new Gson().fromJson(apiRequestBodyAsJson, AuthenticateRequest.class);
@@ -108,10 +115,30 @@ public class AuthenticationApiResource {
         }
 
 
+        request.password = rsaEncryptionUtils.decryptUsingRSA(request.password,
+                encryptionKeyStoreService.retrieveKey(AUTH).getPrivateKey(), true);
+
         AppUser appUser = this.springSecurityPlatformSecurityContext.getAppUserByUsername(request.username);
 
+        // 1. Password expiry check
         if (!appUser.isCredentialsNonExpired()) {
-            throw new IllegalArgumentException("Account is locked due to multiple failed login attempts.");
+            throw new IllegalArgumentException("Your password has expired. Please reset it.");
+        }
+
+        // 2. Temporary lockout check
+        if (!appUser.isAccountNonLocked()) {
+            if (appUser.getCredentialsLockedAt() != null) {
+                LocalDateTime unlockTime = appUser.getCredentialsLockedAt().plusMinutes(1);
+                if (LocalDateTime.now().isAfter(unlockTime)) {
+                    // Unlock the account
+                    appUser.setAccountNonLocked(true);
+                    appUser.setFailedLoginAttempts(0);
+                    appUser.setCredentialsLockedAt(null);
+                    this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
+                } else {
+                    throw new IllegalArgumentException("Account is temporarily locked. Try again after 10 minutes.");
+                }
+            }
         }
 
         final Authentication authentication = new UsernamePasswordAuthenticationToken(request.username.trim(), request.password.trim());
@@ -120,26 +147,32 @@ public class AuthenticationApiResource {
         try {
             authenticationCheck = this.customAuthenticationProvider.authenticate(authentication);
         } catch (Exception e) {
+            appUser.incrementFailedLoginAttempts();
 
-            int failed = appUser.getFailedLoginAttempts() + 1;
-            appUser.setFailedLoginAttempts(failed);
+            // If user reached max attempts, lock the account
+            if (appUser.getFailedLoginAttempts() >= 3) {
+                appUser.setAccountNonLocked(false);
+                appUser.setCredentialsLockedAt(LocalDateTime.now());
 
-            if (failed >= 3) {
-                appUser.setCredentialsNonExpired(false);
+                this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
+
+                throw validationError("error.msg.account.locked",
+                        "Invalid username or password. Account is temporarily locked for 10 minutes.");
             }
-
+            // Save after incrementing but not locked yet
             this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
+
             if (e instanceof CredentialsExpiredException) {
                 throw validationError("error.msg.password.expired", "Your password has expired. Please change it.");
-            } else if (e  instanceof BadCredentialsException) {
+            } else if (e instanceof BadCredentialsException) {
                 throw validationError("error.msg.invalid.credentials", "Invalid username or password.");
-            }else{
+            } else {
                 throw new IllegalArgumentException("Invalid username or password.");
             }
         }
 
         final AppUser principal = (AppUser) authenticationCheck.getPrincipal();
-        principal.setFailedLoginAttempts(0);
+        principal.resetFailedLoginAttempts();
         principal.setCredentialsNonExpired(true);
         this.springSecurityPlatformSecurityContext.saveAppUser(principal);
 

@@ -30,6 +30,7 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
 import java.util.Random;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -82,8 +83,8 @@ public class RSAEncryptionUtils {
             Cipher decrypt = Cipher.getInstance("RSA");
             decrypt.init(Cipher.DECRYPT_MODE, privateKey);
             if(isBase64Encoded) {
-                encryptedText = Hex.encodeHexString(encryptedText.getBytes( UTF_8));
-                byte[] decryptByteFromUi = decrypt.doFinal(DatatypeConverter.parseHexBinary(encryptedText));
+                //encryptedText = Hex.encodeHexString(encryptedText.getBytes( UTF_8));
+                byte[] decryptByteFromUi = decrypt.doFinal(Base64.getDecoder().decode(encryptedText));
                 decryptedString =  new String(decryptByteFromUi,  UTF_8);
             } else {
                 byte[] decryptByteFromUi = decrypt.doFinal(encryptedText.getBytes( UTF_8));

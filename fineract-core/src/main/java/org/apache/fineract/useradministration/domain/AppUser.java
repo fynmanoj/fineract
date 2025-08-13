@@ -30,6 +30,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -81,12 +82,11 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     @Column(name = "nonlocked", nullable = false)
     private boolean accountNonLocked;
 
+    @Column(name = "credentials_locked_at")
+    private LocalDateTime credentialsLockedAt;
+
     @Column(name = "nonexpired_credentials", nullable = false)
     private boolean credentialsNonExpired;
-
-    public void setCredentialsNonExpired(boolean credentialsNonExpired) {
-        this.credentialsNonExpired = credentialsNonExpired;
-    }
 
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
@@ -94,10 +94,6 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     // addition of a lockout mechanism
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts = 0;
-
-    @Column(name = "is_account_locked", nullable = false)
-    private boolean isAccountLocked = false;
-
 
     @Column(name = "firsttime_login_remaining", nullable = false)
     private boolean firstTimeLoginRemaining;
@@ -497,12 +493,18 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
         this.failedLoginAttempts = failedLoginAttempts;
     }
 
-    public boolean isAccountLocked() {
-        return isAccountLocked;
+    // For timed locked-out mechanism
+
+    public LocalDateTime getCredentialsLockedAt() {
+        return credentialsLockedAt;
     }
 
-    public void setAccountLocked(boolean accountLocked) {
-        this.isAccountLocked = accountLocked;
+    public void setCredentialsLockedAt(LocalDateTime credentialsLockedAt) {
+        this.credentialsLockedAt = credentialsLockedAt;
+    }
+
+    public void setAccountNonLocked(boolean accountNonLocked) {
+        this.accountNonLocked = accountNonLocked;
     }
 
     // lockout logic implementation
@@ -510,13 +512,14 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     public void incrementFailedLoginAttempts() {
         this.failedLoginAttempts++;
         if (this.failedLoginAttempts >= 3) {
-            this.isAccountLocked = true;
+            this.accountNonLocked = false;
+            this.credentialsLockedAt = LocalDateTime.now();
         }
     }
 
     public void resetFailedLoginAttempts() {
         this.failedLoginAttempts = 0;
-        this.isAccountLocked = false;
+
     }
 
     public LocalDate getLastTimePasswordUpdated() {
@@ -775,6 +778,10 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
             }
         }
         return newAppUserClientMappings;
+    }
+
+    public void setCredentialsNonExpired(boolean credentialsNonExpired) {
+        this.credentialsNonExpired = credentialsNonExpired;
     }
 
     @Override
