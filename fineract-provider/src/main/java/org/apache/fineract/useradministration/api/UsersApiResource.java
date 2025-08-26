@@ -47,7 +47,10 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.fineract.commands.domain.CommandWrapper;
@@ -62,6 +65,7 @@ import org.apache.fineract.infrastructure.core.data.CommandProcessingResult;
 import org.apache.fineract.infrastructure.core.data.UploadRequest;
 import org.apache.fineract.infrastructure.core.serialization.ApiRequestJsonSerializationSettings;
 import org.apache.fineract.infrastructure.core.serialization.DefaultToApiJsonSerializer;
+import org.apache.fineract.infrastructure.core.service.PlatformEmailService;
 import org.apache.fineract.infrastructure.security.api.AuthenticationApiResource;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.organisation.office.data.OfficeData;
@@ -109,9 +113,11 @@ public class UsersApiResource {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final AppUserRepository appUserRepository;
+    private final PlatformEmailService emailService;
     //for testing purposes only
-    // Temporary in-memory OTP cache (for testing only)
-    private final Map<String, OtpEntry> otpCache = new ConcurrentHashMap<>();
+    // Temporary in-memory OTP cache (for testing only): move this to redis or DB
+    private final static Map<String, OtpEntry> otpCache = new ConcurrentHashMap<>();
+    private static final ExecutorService executorService = Executors.newFixedThreadPool(1);
 
 
 
@@ -384,13 +390,23 @@ public class UsersApiResource {
         // Generate OTP and store it temporarily (for testing, use static map)
         String otp = String.valueOf((int)(100000 + Math.random() * 900000)); // 6-digit OTP
         otpCache.put(username, new OtpEntry(otp, Instant.now()));
-
-        // Return OTP in response for now (don't do this in production!)
+        cleanUpExpiredOTPs();
+        sendOtpInEmail(email, otp);
         return Response.ok(Map.of(
-                "message", "OTP generated successfully",
-                "otp", otp
+                "message", "OTP generated successfully and sent to registered email"
         )).build();
     }
+
+    private void sendOtpInEmail(String email, String otp) {
+        String templateNameSub = "EMAIL_FORGOT_PASSWD_OTP_SUBJECT";
+        String templateNameBody = "EMAIL_FORGOT_PASSWD_OTP_BODY";
+        Map<String, Object> reqMap = new HashMap<>();
+        reqMap.put("contactName", email);
+        reqMap.put("address", email);
+        reqMap.put("otp", otp);
+        emailService.sendEmailWIthTemplates(templateNameSub, templateNameBody, reqMap);
+    }
+
 
     @POST
     @Path("forgot-password/verify")
@@ -456,10 +472,21 @@ public class UsersApiResource {
         // Log to console
         System.out.println("✅ Password reset successful for user: " + username);
         System.out.println("🔒 Account temporarily locked for 5 minutes after password reset.");
-
+        cleanUpExpiredOTPs();
         return Response.ok(Map.of(
                 "message", "Password reset successful. Account is temporarily locked for 5 minutes for security."
         )).build();
     }
 
+    private void cleanUpExpiredOTPs(){
+        executorService.submit(() ->{
+            for(Map.Entry<String,OtpEntry> otp :otpCache.entrySet()) {
+                OtpEntry otpEntry = otp.getValue();
+                String username= otp.getKey();
+                if (Duration.between(otpEntry.getGeneratedAt(), Instant.now()).toMinutes() > 10) {
+                    otpCache.remove(username);
+                }
+            }
+        });
+    }
 }

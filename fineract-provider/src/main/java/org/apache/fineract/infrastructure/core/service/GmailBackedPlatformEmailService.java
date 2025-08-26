@@ -18,28 +18,73 @@
  */
 package org.apache.fineract.infrastructure.core.service;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.configuration.data.SMTPCredentialsData;
 import org.apache.fineract.infrastructure.configuration.service.ExternalServicesPropertiesReadPlatformService;
 import org.apache.fineract.infrastructure.core.domain.EmailDetail;
+import org.apache.fineract.infrastructure.core.exception.GeneralPlatformDomainRuleException;
+import org.apache.fineract.template.domain.Template;
+import org.apache.fineract.template.domain.TemplateRepository;
+import org.apache.fineract.template.service.TemplateMergeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class GmailBackedPlatformEmailService implements PlatformEmailService {
 
     private final ExternalServicesPropertiesReadPlatformService externalServicesReadPlatformService;
-
+    private final TemplateRepository templateRepository;
+    private final TemplateMergeService templateMergeService;
     @Autowired
-    public GmailBackedPlatformEmailService(final ExternalServicesPropertiesReadPlatformService externalServicesReadPlatformService) {
+    public GmailBackedPlatformEmailService(final ExternalServicesPropertiesReadPlatformService externalServicesReadPlatformService, TemplateRepository templateRepository, TemplateMergeService templateMergeService) {
         this.externalServicesReadPlatformService = externalServicesReadPlatformService;
+        this.templateRepository = templateRepository;
+        this.templateMergeService = templateMergeService;
     }
 
+
+    public void sendToUserAccountWithTemplate(String organisationName, String contactName, String address, String username, String unencodedPassword) {
+        String templateNameSub = "EMAIL_NEW_USER_SUBJECT";
+        String templateNameBody = "EMAIL_NEW_USER_BODY";
+        Map<String, Object> reqMap = new HashMap<>();
+        reqMap.put("organisationName", organisationName);
+        reqMap.put("contactName", contactName);
+        reqMap.put("address", address);
+        reqMap.put("username", username);
+        reqMap.put("unencodedPassword", unencodedPassword);
+        sendEmailWIthTemplates(templateNameSub, templateNameBody, reqMap);
+    }
+    @Override
+    public void sendEmailWIthTemplates(String subjectTemplate, String bodyTemplate, Map<String, Object> reqMap){
+        String address = (String)reqMap.get("address");
+        String contactName = (String)reqMap.get("contactName");
+        Template templateSub = this.templateRepository.findByName(subjectTemplate)
+                .orElseThrow(()->
+                        new GeneralPlatformDomainRuleException("error.msg.templates.not.found", "Template not found", subjectTemplate));
+        Template templateBody = this.templateRepository.findByName(bodyTemplate)
+                .orElseThrow(()->
+                        new GeneralPlatformDomainRuleException("error.msg.templates.not.found", "Template not found", bodyTemplate));
+
+        String emailSubjectText = this.templateMergeService.compile(templateSub, reqMap);
+        String emailBodyText = this.templateMergeService.compile(templateBody, reqMap);
+        final EmailDetail emailDetail = new EmailDetail(emailSubjectText, emailBodyText, address, contactName);
+        sendDefinedEmail(emailDetail);
+    }
     @Override
     public void sendToUserAccount(String organisationName, String contactName, String address, String username, String unencodedPassword) {
-
+        try{
+            sendToUserAccountWithTemplate(organisationName, contactName, address, username, unencodedPassword);
+            return;
+        }catch (Exception e){
+            log.error("Templates not found");
+        }
         final String subject = "Welcome " + contactName + " to " + organisationName;
         final String body = "You are receiving this email as your email account: " + address
                 + " has being used to create a user account for an organisation named [" + organisationName + "] on Mifos.\n"

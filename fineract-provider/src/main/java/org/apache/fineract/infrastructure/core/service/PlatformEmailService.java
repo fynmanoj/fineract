@@ -20,7 +20,11 @@ package org.apache.fineract.infrastructure.core.service;
 
 import org.apache.fineract.infrastructure.core.domain.EmailDetail;
 
+import java.util.Map;
+
 public interface PlatformEmailService {
+
+    void sendEmailWIthTemplates(String subjectTemplate, String bodyTemplate, Map<String, Object> reqMap);
 
     void sendToUserAccount(String organisationName, String contactName, String address, String username, String unencodedPassword);
 
