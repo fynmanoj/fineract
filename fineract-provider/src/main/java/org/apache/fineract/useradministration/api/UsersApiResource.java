@@ -470,8 +470,8 @@ public class UsersApiResource {
         otpCache.remove(username);
 
         // Log to console
-        System.out.println("✅ Password reset successful for user: " + username);
-        System.out.println("🔒 Account temporarily locked for 5 minutes after password reset.");
+        System.out.println(" Password reset successful for user: " + username);
+        System.out.println(" Account temporarily locked for 5 minutes after password reset.");
         cleanUpExpiredOTPs();
         return Response.ok(Map.of(
                 "message", "Password reset successful. Account is temporarily locked for 5 minutes for security."

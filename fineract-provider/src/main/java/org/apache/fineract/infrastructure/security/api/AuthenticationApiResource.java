@@ -128,7 +128,7 @@ public class AuthenticationApiResource {
         // 2. Temporary lockout check
         if (!appUser.isAccountNonLocked()) {
             if (appUser.getCredentialsLockedAt() != null) {
-                LocalDateTime unlockTime = appUser.getCredentialsLockedAt().plusMinutes(1);
+                LocalDateTime unlockTime = appUser.getCredentialsLockedAt().plusMinutes(5);
                 if (LocalDateTime.now().isAfter(unlockTime)) {
                     // Unlock the account
                     appUser.setAccountNonLocked(true);

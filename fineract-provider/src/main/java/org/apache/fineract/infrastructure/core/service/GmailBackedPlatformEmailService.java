@@ -65,6 +65,7 @@ public class GmailBackedPlatformEmailService implements PlatformEmailService {
     public void sendEmailWIthTemplates(String subjectTemplate, String bodyTemplate, Map<String, Object> reqMap){
         String address = (String)reqMap.get("address");
         String contactName = (String)reqMap.get("contactName");
+        reqMap.put("tenantName" , ThreadLocalContextUtil.getTenant().getName());
         Template templateSub = this.templateRepository.findByName(subjectTemplate)
                 .orElseThrow(()->
                         new GeneralPlatformDomainRuleException("error.msg.templates.not.found", "Template not found", subjectTemplate));
