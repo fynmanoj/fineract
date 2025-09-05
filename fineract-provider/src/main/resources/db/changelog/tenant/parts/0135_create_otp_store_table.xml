@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+    <changeSet id="0135" author="pareekshith">
+        <createTable tableName="m_otp_store">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="otp_code" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expiry_time" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_m_otp_store_username" tableName="m_otp_store">
+            <column name="username"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
