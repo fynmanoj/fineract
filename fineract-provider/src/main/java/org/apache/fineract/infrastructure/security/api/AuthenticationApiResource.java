@@ -136,7 +136,17 @@ public class AuthenticationApiResource {
                     appUser.setCredentialsLockedAt(null);
                     this.springSecurityPlatformSecurityContext.saveAppUser(appUser);
                 } else {
-                    throw new IllegalArgumentException("Account is temporarily locked. Try again after 10 minutes.");
+                    //throw new IllegalArgumentException("Account is temporarily locked. Try again after 10 minutes.");
+                    long secondsLeft = java.time.Duration.between(LocalDateTime.now(), unlockTime).getSeconds();
+                    long minutesLeft = secondsLeft / 60;
+                    long remainingSeconds = secondsLeft % 60;
+
+                    String message = String.format(
+                            "Account is temporarily locked for 5 minutes for security. Please try again in %d minutes %d seconds.",
+                            minutesLeft, remainingSeconds
+                    );
+
+                    throw validationError("error.msg.account.locked", message);
                 }
             }
         }

@@ -21,17 +21,25 @@ package org.apache.fineract.useradministration.service;
 import static org.apache.fineract.useradministration.service.AppUserConstants.CLIENTS;
 import static org.apache.fineract.useradministration.service.UserDataValidator.PASSWORD;
 //import org.springframework.security.crypto.password.PasswordEncoder;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.fineract.infrastructure.security.service.PlatformPasswordEncoder;
 
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import jakarta.persistence.PersistenceException;
+
+import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -47,6 +55,7 @@ import org.apache.fineract.infrastructure.core.service.PlatformEmailSendExceptio
 import org.apache.fineract.infrastructure.security.exception.ResetPasswordException;
 import org.apache.fineract.infrastructure.security.service.PlatformPasswordEncoder;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
+import org.apache.fineract.infrastructure.security.service.RandomPasswordGenerator;
 import org.apache.fineract.organisation.office.domain.Office;
 import org.apache.fineract.organisation.office.domain.OfficeRepositoryWrapper;
 import org.apache.fineract.organisation.staff.domain.Staff;
@@ -59,6 +68,8 @@ import org.apache.fineract.useradministration.domain.AppUser;
 import org.apache.fineract.useradministration.domain.AppUserPreviousPassword;
 import org.apache.fineract.useradministration.domain.AppUserPreviousPasswordRepository;
 import org.apache.fineract.useradministration.domain.AppUserRepository;
+import org.apache.fineract.useradministration.domain.PasswordValidationPolicy;
+import org.apache.fineract.useradministration.domain.PasswordValidationPolicyRepository;
 import org.apache.fineract.useradministration.domain.Role;
 import org.apache.fineract.useradministration.domain.RoleRepository;
 import org.apache.fineract.useradministration.domain.UserDomainService;
@@ -95,6 +106,7 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
     private final StaffRepositoryWrapper staffRepositoryWrapper;
     private final ClientRepositoryWrapper clientRepositoryWrapper;
     private final AuthenticationManager authenticationManager;
+    private final PasswordValidationPolicyRepository passwordValidationPolicy;
 
 
 
@@ -138,10 +150,17 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
             } else {
                 clients = null;
             }
-
-            AppUser appUser = AppUser.fromJson(userOffice, linkedStaff, allRoles, clients, command);
-
             final Boolean sendPasswordToEmail = command.booleanObjectValueOfParameterNamed("sendPasswordToEmail");
+            String password = command.stringValueOfParameterNamed("password");
+            if (sendPasswordToEmail) {
+                final PasswordValidationPolicy validationPolicy = this.passwordValidationPolicy.findActivePasswordValidationPolicy();
+                final String regex = validationPolicy.getRegex();
+                password = generatePassword(regex);
+            }
+
+            AppUser appUser = AppUser.fromJson(userOffice, linkedStaff, allRoles, clients, password, command);
+
+
             this.userDomainService.create(appUser, sendPasswordToEmail);
 
             return new CommandProcessingResultBuilder() //
@@ -384,4 +403,33 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
         }
     }
 
+    private String generatePassword(String regex) {
+
+        final String ALL_CHARS =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+        final SecureRandom RANDOM = new SecureRandom();
+
+        Pattern pattern = Pattern.compile(regex);
+
+        // Try to extract a trailing length quantifier from something like .{6,50}
+        int minLen = 8;  // default if not found
+        int maxLen = 8;
+        Matcher m = Pattern.compile("\\.\\{(\\d+)(,(\\d+))?}").matcher(regex);
+        if (m.find()) {
+            minLen = Integer.parseInt(m.group(1));
+            maxLen = (m.group(3) != null) ? Integer.parseInt(m.group(3)) : minLen;
+        }
+
+        while (true) {
+            int len = RANDOM.nextInt(maxLen - minLen + 1) + minLen;
+            StringBuilder sb = new StringBuilder(len);
+            for (int i = 0; i < len; i++) {
+                sb.append(ALL_CHARS.charAt(RANDOM.nextInt(ALL_CHARS.length())));
+            }
+            String candidate = sb.toString();
+            if (pattern.matcher(candidate).matches()) {
+                return candidate;
+            }
+        }
+    }
 }

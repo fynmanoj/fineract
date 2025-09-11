@@ -129,13 +129,13 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     private Boolean cannotChangePassword;
 
     public static AppUser fromJson(final Office userOffice, final Staff linkedStaff, final Set<Role> allRoles,
-            final Collection<Client> clients, final JsonCommand command) {
+            final Collection<Client> clients, String password, final JsonCommand command) {
 
         final String username = command.stringValueOfParameterNamed("username");
-        String password = command.stringValueOfParameterNamed("password");
+
         final Boolean sendPasswordToEmail = command.booleanObjectValueOfParameterNamed("sendPasswordToEmail");
 
-        if (sendPasswordToEmail) {
+        if (sendPasswordToEmail && StringUtils.isBlank(password)) {
             password = new RandomPasswordGenerator(13).generate();
         }
 
