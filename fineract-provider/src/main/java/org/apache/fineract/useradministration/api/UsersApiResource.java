@@ -53,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.commands.domain.CommandWrapper;
 import org.apache.fineract.commands.service.CommandWrapperBuilder;
 import org.apache.fineract.commands.service.PortfolioCommandSourceWritePlatformService;
@@ -92,6 +93,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Tag(name = "Users", description = "An API capability to support administration of application users.")
 @RequiredArgsConstructor
+@Slf4j
 public class UsersApiResource {
 
     /**
@@ -190,7 +192,7 @@ public class UsersApiResource {
     @Consumes({ MediaType.APPLICATION_JSON })
     @Produces({ MediaType.APPLICATION_JSON })
     public String create(@Parameter(hidden = true) final String apiRequestBodyAsJson) {
-
+        log.debug("Create-user-request-received!");
         final CommandWrapper commandRequest = new CommandWrapperBuilder() //
                 .createUser() //
                 .withJson(apiRequestBodyAsJson) //

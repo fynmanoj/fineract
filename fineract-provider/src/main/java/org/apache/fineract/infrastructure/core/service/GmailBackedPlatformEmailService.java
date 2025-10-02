@@ -31,12 +31,16 @@ import org.apache.fineract.template.domain.Template;
 import org.apache.fineract.template.domain.TemplateRepository;
 import org.apache.fineract.template.service.TemplateMergeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@Scope(proxyMode = ScopedProxyMode.TARGET_CLASS)
 public class GmailBackedPlatformEmailService implements PlatformEmailService {
 
     private final ExternalServicesPropertiesReadPlatformService externalServicesReadPlatformService;
@@ -63,6 +67,7 @@ public class GmailBackedPlatformEmailService implements PlatformEmailService {
     }
     @Override
     public void sendEmailWIthTemplates(String subjectTemplate, String bodyTemplate, Map<String, Object> reqMap){
+        log.info("trying to send email with templates for user {}", reqMap.get("username"));
         String address = (String)reqMap.get("address");
         String contactName = (String)reqMap.get("contactName");
         reqMap.put("tenantName" , ThreadLocalContextUtil.getTenant().getName());
@@ -75,10 +80,12 @@ public class GmailBackedPlatformEmailService implements PlatformEmailService {
 
         String emailSubjectText = this.templateMergeService.compile(templateSub, reqMap);
         String emailBodyText = this.templateMergeService.compile(templateBody, reqMap);
+        log.debug("templates found , subject {}", emailSubjectText);
         final EmailDetail emailDetail = new EmailDetail(emailSubjectText, emailBodyText, address, contactName);
         sendDefinedEmail(emailDetail);
     }
     @Override
+    //@Async
     public void sendToUserAccount(String organisationName, String contactName, String address, String username, String unencodedPassword) {
         try{
             sendToUserAccountWithTemplate(organisationName, contactName, address, username, unencodedPassword);
@@ -126,16 +133,21 @@ public class GmailBackedPlatformEmailService implements PlatformEmailService {
         props.put("mail.smtp.socketFactory.port", Integer.parseInt(smtpCredentialsData.getPort()));
         props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");// NOSONAR
         props.put("mail.smtp.socketFactory.fallback", "true");
-
+        props.put("mail.smtp.connectiontimeout", 10000);
+        props.put("mail.smtp.timeout", 10000);
+        props.put("mail.smtp.writetimeout", 10000);
         try {
+            log.info("sending email start, username: {} timeout {}", authuser, props.get("mail.smtp.connectiontimeout"));
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(smtpCredentialsData.getFromEmail()); // same email address used for the authentication
             message.setTo(emailDetails.getAddress());
             message.setSubject(emailDetails.getSubject());
             message.setText(emailDetails.getBody());
             mailSender.send(message);
+            log.info("--------------email sent!-------------");
 
         } catch (Exception e) {
+            log.error("Email sending failed",e);
             throw new PlatformEmailSendException(e);
         }
     }

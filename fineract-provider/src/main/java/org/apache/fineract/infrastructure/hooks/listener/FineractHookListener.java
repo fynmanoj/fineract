@@ -42,6 +42,7 @@ public class FineractHookListener implements HookListener {
 
     @Override
     public void onApplicationEvent(final HookEvent event) {
+        log.info("Initialize for hook listener onApplicationEvent");
         ThreadLocalContextUtil.init(event.getContext());
 
         final AppUser appUser = event.getAppUser();
@@ -51,10 +52,10 @@ public class FineractHookListener implements HookListener {
         final String entityName = hookEventSource.getEntityName();
         final String actionName = hookEventSource.getActionName();
         final String payload = event.getPayload();
-
+        log.info("Searching for hooks entityName {}, actionName {}",entityName, actionName);
         final List<Hook> hooks = hookReadPlatformService.retrieveHooksByEvent(hookEventSource.getEntityName(),
                 hookEventSource.getActionName());
-
+        log.info("Searching for hooks,  size {}", hooks.size());
         for (final Hook hook : hooks) {
             final HookProcessor processor = hookProcessorProvider.getProcessor(hook);
             try {

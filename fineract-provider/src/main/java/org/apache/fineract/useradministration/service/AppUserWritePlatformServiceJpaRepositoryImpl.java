@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -115,6 +116,7 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
     @Caching(evict = { @CacheEvict(value = "users", allEntries = true), @CacheEvict(value = "usersByUsername", allEntries = true) })
     public CommandProcessingResult createUser(final JsonCommand command) {
         try {
+            log.info("Creating user-----------");
             this.context.authenticatedUser();
 
             this.fromApiJsonDeserializer.validateForCreate(command.json());
@@ -404,32 +406,47 @@ public class AppUserWritePlatformServiceJpaRepositoryImpl implements AppUserWrit
     }
 
     private String generatePassword(String regex) {
+        final String UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        final String LOWER = "abcdefghijklmnopqrstuvwxyz";
+        final String DIGITS = "0123456789";
+        final String SPECIAL = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+        final String ALL = UPPER + LOWER + DIGITS + SPECIAL;
 
-        final String ALL_CHARS =
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
-        final SecureRandom RANDOM = new SecureRandom();
-
+        SecureRandom random = new SecureRandom();
         Pattern pattern = Pattern.compile(regex);
 
-        // Try to extract a trailing length quantifier from something like .{6,50}
-        int minLen = 8;  // default if not found
-        int maxLen = 8;
-        Matcher m = Pattern.compile("\\.\\{(\\d+)(,(\\d+))?}").matcher(regex);
+        // Extract length range
+        int minLen = 8, maxLen = 8;
+        Matcher m = Pattern.compile("\\{(\\d+)(,(\\d+))?}").matcher(regex);
         if (m.find()) {
             minLen = Integer.parseInt(m.group(1));
             maxLen = (m.group(3) != null) ? Integer.parseInt(m.group(3)) : minLen;
         }
 
         while (true) {
-            int len = RANDOM.nextInt(maxLen - minLen + 1) + minLen;
+            int len = random.nextInt(maxLen - minLen + 1) + minLen;
             StringBuilder sb = new StringBuilder(len);
-            for (int i = 0; i < len; i++) {
-                sb.append(ALL_CHARS.charAt(RANDOM.nextInt(ALL_CHARS.length())));
+
+            // Ensure required groups
+            sb.append(UPPER.charAt(random.nextInt(UPPER.length())));
+            sb.append(LOWER.charAt(random.nextInt(LOWER.length())));
+            sb.append(DIGITS.charAt(random.nextInt(DIGITS.length())));
+            sb.append(SPECIAL.charAt(random.nextInt(SPECIAL.length())));
+
+            // Fill rest
+            for (int i = sb.length(); i < len; i++) {
+                sb.append(ALL.charAt(random.nextInt(ALL.length())));
             }
-            String candidate = sb.toString();
+
+            // Shuffle to avoid predictable order
+            List<Character> chars = sb.chars().mapToObj(c -> (char)c).collect(Collectors.toList());
+            Collections.shuffle(chars, random);
+            String candidate = chars.stream().map(String::valueOf).collect(Collectors.joining());
+
             if (pattern.matcher(candidate).matches()) {
                 return candidate;
             }
         }
     }
+
 }

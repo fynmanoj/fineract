@@ -487,6 +487,7 @@ public class FineractProperties {
     public static class FineractSecurityBasicAuth {
 
         private boolean enabled;
+        private String tokentype;
     }
 
     @Getter

@@ -8,9 +8,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.infrastructure.security.service.SessionHandlerService;
 import org.apache.fineract.infrastructure.security.service.TenantAwareJpaPlatformUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -46,7 +48,7 @@ public class CustomTokenAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Token ")) {
             String token = authHeader.substring(6); // Remove "Token " prefix
             String username = sessionHandlerService.validateAndExtractUsername(token);
-
+            ThreadLocalContextUtil.setAuthToken(token);
 
             if (username != null ) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
@@ -56,8 +58,10 @@ public class CustomTokenAuthenticationFilter extends OncePerRequestFilter {
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
+        }/* else {
+            throw new BadCredentialsException("User not authorised to use the requested resource.");
         }
-
+*/
         filterChain.doFilter(request, response);
     }
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.fineract.useradministration.domain;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.core.service.PlatformEmailService;
 import org.apache.fineract.infrastructure.security.service.PlatformPasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 public class JpaUserDomainService implements UserDomainService {
 
     private final AppUserRepository userRepository;
@@ -53,6 +55,7 @@ public class JpaUserDomainService implements UserDomainService {
         this.userRepository.saveAndFlush(appUser);
 
         if (sendPasswordToEmail.booleanValue()) {
+            log.info("sending email for user {}", appUser.getUsername());
             this.emailService.sendToUserAccount(appUser.getOffice().getName(), appUser.getFirstname(), appUser.getEmail(),
                     appUser.getUsername(), unencodedPassword);
         }

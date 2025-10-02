@@ -168,7 +168,7 @@ public class TemplateMergeService {
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
             if (authToken != null) {
-                connection.setRequestProperty("Authorization", "Basic " + authToken);// NOSONAR
+                connection.setRequestProperty("Authorization", fineractProperties.getSecurity().getBasicauth().getTokentype()+ " " + authToken);// NOSONAR
             }
             TrustModifier.relaxHostChecking(connection);
             connection.setDoInput(true);
