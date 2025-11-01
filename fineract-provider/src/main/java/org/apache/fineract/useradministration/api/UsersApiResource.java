@@ -68,6 +68,7 @@ import org.apache.fineract.infrastructure.core.serialization.ApiRequestJsonSeria
 import org.apache.fineract.infrastructure.core.serialization.DefaultToApiJsonSerializer;
 import org.apache.fineract.infrastructure.core.service.PlatformEmailService;
 import org.apache.fineract.infrastructure.security.api.AuthenticationApiResource;
+import org.apache.fineract.infrastructure.security.service.OTPService;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.organisation.office.data.OfficeData;
 import org.apache.fineract.organisation.office.service.OfficeReadPlatformService;
@@ -88,6 +89,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Path("/v1/users")
 @Component
@@ -103,6 +106,7 @@ public class UsersApiResource {
             "firstname", "lastname", "email", "allowedOffices", "availableRoles", "selectedRoles", "staff"));
 
     private static final String RESOURCE_NAME_FOR_PERMISSIONS = "USER";
+    private static final Logger LOG = LoggerFactory.getLogger(UsersApiResource.class);
 
     private final PlatformSecurityContext context;
     private final AppUserReadPlatformService readPlatformService;
@@ -116,9 +120,7 @@ public class UsersApiResource {
     private final PasswordEncoder passwordEncoder;
     private final AppUserRepository appUserRepository;
     private final PlatformEmailService emailService;
-    //for testing purposes only
-    // Temporary in-memory OTP cache (for testing only): move this to redis or DB
-    private final static Map<String, OtpEntry> otpCache = new ConcurrentHashMap<>();
+    private final OTPService otpService;
     private static final ExecutorService executorService = Executors.newFixedThreadPool(1);
 
 
@@ -389,10 +391,8 @@ public class UsersApiResource {
             return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("error", "Email does not match")).build();
         }
 
-        // Generate OTP and store it temporarily (for testing, use static map)
-        String otp = String.valueOf((int)(100000 + Math.random() * 900000)); // 6-digit OTP
-        otpCache.put(username, new OtpEntry(otp, Instant.now()));
-        cleanUpExpiredOTPs();
+        // Generate OTP using OTPService
+        String otp = otpService.generateOTP(username);
         sendOtpInEmail(email, otp);
         return Response.ok(Map.of(
                 "message", "OTP generated successfully and sent to registered email"
@@ -408,7 +408,6 @@ public class UsersApiResource {
         reqMap.put("otp", otp);
         emailService.sendEmailWIthTemplates(templateNameSub, templateNameBody, reqMap);
     }
-
 
     @POST
     @Path("forgot-password/verify")
@@ -435,22 +434,10 @@ public class UsersApiResource {
         AppUser user = optionalUser.get();
 
         // Check OTP
-        OtpEntry otpEntry = otpCache.get(username);
-        if (otpEntry == null) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(Map.of("error", "No OTP request found for this user")).build();
-        }
-
-        if (!otpEntry.getOtp().equals(otp)) {
+        boolean isValidOtp = otpService.verifyOTP(username, otp);
+        if (!isValidOtp) {
             return Response.status(Response.Status.UNAUTHORIZED)
-                    .entity(Map.of("error", "Invalid OTP")).build();
-        }
-
-        // Check if OTP is expired (valid for 10 minutes)
-        if (Duration.between(otpEntry.getGeneratedAt(), Instant.now()).toMinutes() > 10) {
-            otpCache.remove(username);
-            return Response.status(Response.Status.UNAUTHORIZED)
-                    .entity(Map.of("error", "OTP expired")).build();
+                    .entity(Map.of("error", "Invalid or expired OTP")).build();
         }
 
         // Check if passwords match
@@ -469,26 +456,12 @@ public class UsersApiResource {
         user.setFailedLoginAttempts(0);
 
         appUserRepository.save(user);
-        otpCache.remove(username);
 
         // Log to console
-        System.out.println(" Password reset successful for user: " + username);
-        System.out.println(" Account temporarily locked for 5 minutes after password reset.");
-        cleanUpExpiredOTPs();
+        LOG.info("Password reset successful for user: {}", username);
+        LOG.info("Account temporarily locked for 5 minutes after password reset.");
         return Response.ok(Map.of(
                 "message", "Password reset successful. Account is temporarily locked for 5 minutes for security."
         )).build();
-    }
-
-    private void cleanUpExpiredOTPs(){
-        executorService.submit(() ->{
-            for(Map.Entry<String,OtpEntry> otp :otpCache.entrySet()) {
-                OtpEntry otpEntry = otp.getValue();
-                String username= otp.getKey();
-                if (Duration.between(otpEntry.getGeneratedAt(), Instant.now()).toMinutes() > 10) {
-                    otpCache.remove(username);
-                }
-            }
-        });
     }
 }
