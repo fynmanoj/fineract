@@ -42,11 +42,11 @@ public class EncryptionKey extends AbstractPersistableCustom {
 
     @Lob
     @Column(name = "public_key", nullable = false)
-    private byte[] publicKey;
+    private String publicKey;
 
     @Lob
     @Column(name = "private_key", nullable = false)
-    private byte[] privateKey;
+    private String privateKey;
 
     @Column(name = "version", nullable = false)
     private String version;

@@ -20,6 +20,7 @@ package org.apache.fineract.infrastructure.crypt.service;
 
 
 import java.time.Duration;
+import java.util.Base64;
 
 import jakarta.inject.Singleton;
 import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
@@ -65,8 +66,11 @@ public class EncryptionKeyStoreServiceImpl  implements EncryptionKeyStoreService
             entity.setKeyType(type);
         }
 
-        entity.setPublicKey(key.getPublicKey());
-        entity.setPrivateKey(key.getPrivateKey());
+        entity.setPublicKey(
+                Base64.getEncoder().encodeToString(key.getPublicKey()));
+
+        entity.setPrivateKey(
+                Base64.getEncoder().encodeToString(key.getPrivateKey()));
         entity.setVersion(key.getVersion());
         entity.setCreatedAt(key.getCreatedDateTime());
 
@@ -104,8 +108,8 @@ public class EncryptionKeyStoreServiceImpl  implements EncryptionKeyStoreService
         }
 
         return new EncryptionKeyPair(
-                entity.getPrivateKey(),
-                entity.getPublicKey(),
+                Base64.getDecoder().decode(entity.getPrivateKey()),
+                Base64.getDecoder().decode(entity.getPublicKey()),
                 entity.getCreatedAt(),
                 entity.getVersion()
         );

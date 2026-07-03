@@ -36,11 +36,11 @@ under the License.
                 <constraints nullable="false"/>
             </column>
 
-            <column name="public_key" type="BLOB">
+            <column name="public_key" type="TEXT">
                 <constraints nullable="false"/>
             </column>
 
-            <column name="private_key" type="BLOB">
+            <column name="private_key" type="TEXT">
                 <constraints nullable="false"/>
             </column>
 
