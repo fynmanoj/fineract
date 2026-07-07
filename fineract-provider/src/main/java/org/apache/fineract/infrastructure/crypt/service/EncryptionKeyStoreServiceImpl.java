@@ -20,21 +20,19 @@ package org.apache.fineract.infrastructure.crypt.service;
 
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Base64;
 
 import jakarta.inject.Singleton;
 import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
-import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.infrastructure.crypt.domain.EncryptionKeyPair;
 import org.apache.fineract.infrastructure.crypt.utils.RSAEncryptionUtils;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
+
+import org.apache.fineract.infrastructure.crypt.domain.EncryptionKey;
+import org.apache.fineract.infrastructure.crypt.repository.EncryptionKeyRepository;
 
 /**
  * @author manoj
@@ -42,22 +40,41 @@ import org.springframework.stereotype.Service;
 @Service
 @Singleton
 public class EncryptionKeyStoreServiceImpl  implements EncryptionKeyStoreService{
-    private Map<String, EncryptionKeyPair> keyMap =  new ConcurrentHashMap<>();
+    private final EncryptionKeyRepository encryptionKeyRepository;
 
 
     private final ConfigurationDomainService configurationDomainService;
     private final RSAEncryptionUtils rsaEncryptionUtils;
 
     @Autowired
-    public EncryptionKeyStoreServiceImpl(ConfigurationDomainService configurationDomainService, RSAEncryptionUtils rsaEncryptionUtils) {
+    public EncryptionKeyStoreServiceImpl(
+            ConfigurationDomainService configurationDomainService,
+            RSAEncryptionUtils rsaEncryptionUtils,
+            EncryptionKeyRepository encryptionKeyRepository) {
         this.configurationDomainService = configurationDomainService;
         this.rsaEncryptionUtils = rsaEncryptionUtils;
+        this.encryptionKeyRepository = encryptionKeyRepository;
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "encryptionKeys", key = "T(org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil).getTenant().getTenantIdentifier().concat(#type)")})
-    public void storeKey(String type, EncryptionKeyPair key){
-        this.keyMap.put(getKeyType(type), key);
+
+    private void storeKey(String type, EncryptionKeyPair key) {
+
+        EncryptionKey entity = encryptionKeyRepository.findByKeyType(type);
+
+        if (entity == null) {
+            entity = new EncryptionKey();
+            entity.setKeyType(type);
+        }
+
+        entity.setPublicKey(
+                Base64.getEncoder().encodeToString(key.getPublicKey()));
+
+        entity.setPrivateKey(
+                Base64.getEncoder().encodeToString(key.getPrivateKey()));
+        entity.setVersion(key.getVersion());
+        entity.setCreatedAt(key.getCreatedDateTime());
+
+        encryptionKeyRepository.save(entity);
     }
 
     private EncryptionKeyPair retrieveValidKey(String type){
@@ -81,15 +98,22 @@ public class EncryptionKeyStoreServiceImpl  implements EncryptionKeyStoreService
         return null;
     }
 
-        @Cacheable(value = "encryptionKeys", key = "T(org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil).getTenant().getTenantIdentifier().concat(#type)")
-    public EncryptionKeyPair getKeys(String type){
-        return this.keyMap.get(getKeyType(type));
-    }
 
-    private String getKeyType(String type){
-        return (type + ThreadLocalContextUtil.getTenant().getTenantIdentifier());
-    }
+    private EncryptionKeyPair getKeys(String type) {
 
+        EncryptionKey entity = encryptionKeyRepository.findByKeyType(type);
+
+        if (entity == null) {
+            return null;
+        }
+
+        return new EncryptionKeyPair(
+                Base64.getDecoder().decode(entity.getPrivateKey()),
+                Base64.getDecoder().decode(entity.getPublicKey()),
+                entity.getCreatedAt(),
+                entity.getVersion()
+        );
+    }
 
     @Override
     public EncryptionKeyPair retrieveKey(String type){

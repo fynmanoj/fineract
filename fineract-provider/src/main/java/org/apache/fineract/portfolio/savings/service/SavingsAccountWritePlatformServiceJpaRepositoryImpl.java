@@ -396,7 +396,9 @@ public class SavingsAccountWritePlatformServiceJpaRepositoryImpl implements Savi
             this.noteRepository.save(note);
         }
         //todo: move this from here
-        changes.put("clientMob", account.getClient().getMobileNo());
+        if (account.getClient() != null) {
+            changes.put("clientMob", account.getClient().getMobileNo());
+        }
         return new CommandProcessingResultBuilder() //
                 .withEntityId(withdrawal.getId()) //
                 .withOfficeId(account.officeId()) //
