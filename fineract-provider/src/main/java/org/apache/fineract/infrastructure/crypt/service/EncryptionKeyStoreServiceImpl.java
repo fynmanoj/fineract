@@ -21,6 +21,7 @@ package org.apache.fineract.infrastructure.crypt.service;
 
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Optional;
 
 import jakarta.inject.Singleton;
 import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
@@ -59,12 +60,12 @@ public class EncryptionKeyStoreServiceImpl  implements EncryptionKeyStoreService
 
     private void storeKey(String type, EncryptionKeyPair key) {
 
-        EncryptionKey entity = encryptionKeyRepository.findByKeyType(type);
-
-        if (entity == null) {
-            entity = new EncryptionKey();
-            entity.setKeyType(type);
-        }
+        EncryptionKey entity = encryptionKeyRepository.findByKeyType(type)
+                .orElseGet(() -> {
+                    EncryptionKey newEntity = new EncryptionKey();
+                    newEntity.setKeyType(type);
+                    return newEntity;
+                });
 
         entity.setPublicKey(
                 Base64.getEncoder().encodeToString(key.getPublicKey()));
@@ -101,18 +102,13 @@ public class EncryptionKeyStoreServiceImpl  implements EncryptionKeyStoreService
 
     private EncryptionKeyPair getKeys(String type) {
 
-        EncryptionKey entity = encryptionKeyRepository.findByKeyType(type);
-
-        if (entity == null) {
-            return null;
-        }
-
-        return new EncryptionKeyPair(
-                Base64.getDecoder().decode(entity.getPrivateKey()),
-                Base64.getDecoder().decode(entity.getPublicKey()),
-                entity.getCreatedAt(),
-                entity.getVersion()
-        );
+        return encryptionKeyRepository.findByKeyType(type)
+                .map(entity -> new EncryptionKeyPair(
+                        Base64.getDecoder().decode(entity.getPrivateKey()),
+                        Base64.getDecoder().decode(entity.getPublicKey()),
+                        entity.getCreatedAt(),
+                        entity.getVersion()))
+                .orElse(null);
     }
 
     @Override
