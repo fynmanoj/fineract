@@ -28,9 +28,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.net.Authenticator;
 import java.net.HttpURLConnection;
-import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -103,7 +101,6 @@ public class TemplateMergeService {
                     scopes.put("BASE_URI", fineractProperties.getBaseUrl());
                 }
                 if (!url.startsWith("http")) {
-                    log.info("Base URL : {}", scopes.get("BASE_URI"));
                     String baseUrl = scopes.get("BASE_URI").toString();
 
                     if (baseUrl.endsWith("/") && url.startsWith("/")) {
@@ -111,7 +108,6 @@ public class TemplateMergeService {
                     } else {
                         url = baseUrl + url;
                     }
-                    log.info("Calling URL: {}", url);
                 }
                 try {
                     scopes.put(entry.getKey(), getMapFromUrl(url));
@@ -176,21 +172,18 @@ public class TemplateMergeService {
             }
         }
 
-        final InternalUser internalUser = fineractProperties
-                .getTemplate()
-                .getInternalUser();
+        final InternalUser internalUser =
+                fineractProperties.getTemplate().getInternalUser();
 
         final String name = internalUser.getUsername();
         final String password = internalUser.getPassword();
 
-        log.info("TemplateMergeService using internal user: {}", name);
-
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
-            String credentials = name + ":" + password;
+            final String credentials = name + ":" + password;
 
-            String basicAuth = Base64.getEncoder()
+            final String basicAuth = Base64.getEncoder()
                     .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
 
             if (ThreadLocalContextUtil.getTenant() == null) {
@@ -198,8 +191,6 @@ public class TemplateMergeService {
             }
 
             String tenantId = ThreadLocalContextUtil.getTenant().getTenantIdentifier();
-
-            log.info("Using tenant: {}", tenantId);
 
             connection.setRequestProperty(
                     "Authorization",
@@ -217,15 +208,7 @@ public class TemplateMergeService {
                     "Content-Type",
                     "application/json");
 
-            log.info("Authorization Header: {}", connection.getRequestProperty("Authorization"));
-            log.info("Tenant Header: {}", connection.getRequestProperty("Fineract-Platform-TenantId"));
-
             connection.setRequestMethod("GET");
-            log.info("Request Method: {}", connection.getRequestMethod());
-            log.info("Tenant Header: {}", tenantId);
-            log.info("Authorization header configured.");
-            log.info("Connection created for URL: {}", url);
-            log.info("Connection created for URL: {}", url);
             TrustModifier.relaxHostChecking(connection);
             connection.setDoInput(true);
 
