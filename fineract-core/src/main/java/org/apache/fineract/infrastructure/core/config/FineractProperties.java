@@ -394,6 +394,17 @@ public class FineractProperties {
 
         private boolean regexWhitelistEnabled;
         private List<String> regexWhitelist;
+
+        private InternalUser internalUser;
+
+        @Getter
+        @Setter
+        public static class InternalUser {
+
+            private String username;
+            private String password;
+
+        }
     }
 
     @Getter
