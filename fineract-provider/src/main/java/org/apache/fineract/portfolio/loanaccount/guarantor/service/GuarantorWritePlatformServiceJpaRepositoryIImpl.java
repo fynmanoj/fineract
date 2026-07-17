@@ -177,7 +177,7 @@ public class GuarantorWritePlatformServiceJpaRepositoryIImpl implements Guaranto
             }
             this.guarantorRepository.saveAndFlush(guarantor);
             return new CommandProcessingResultBuilder().withCommandId(command.commandId()).withOfficeId(guarantor.getOfficeId())
-                    .withEntityId(guarantor.getId()).withLoanId(loan.getId()).build();
+                    .withClientId(guarantor.getClientId()).withEntityId(guarantor.getId()).withLoanId(loan.getId()).build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
             final Throwable throwable = dve.getMostSpecificCause();
             handleGuarantorDataIntegrityIssues(throwable, dve);
@@ -248,7 +248,7 @@ public class GuarantorWritePlatformServiceJpaRepositoryIImpl implements Guaranto
             }
 
             return new CommandProcessingResultBuilder().withCommandId(command.commandId()).withOfficeId(guarantorForUpdate.getOfficeId())
-                    .withEntityId(guarantorForUpdate.getId()).withOfficeId(guarantorForUpdate.getLoanId()).with(changesOnly).build();
+                    .withClientId(guarantorForUpdate.getClientId()).withEntityId(guarantorForUpdate.getId()).withOfficeId(guarantorForUpdate.getLoanId()).with(changesOnly).build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
             final Throwable throwable = dve.getMostSpecificCause();
             handleGuarantorDataIntegrityIssues(throwable, dve);
