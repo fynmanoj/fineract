@@ -95,6 +95,9 @@ public class Guarantor extends AbstractPersistableCustom {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @Column(name = "approval_status", nullable = false)
+    private Integer approvalStatus;
+
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "guarantor", orphanRemoval = true, fetch = FetchType.EAGER)
     private List<GuarantorFundingDetails> guarantorFundDetails = new ArrayList<>();
 
@@ -106,7 +109,7 @@ public class Guarantor extends AbstractPersistableCustom {
             final String firstname, final String lastname, final LocalDate dateOfBirth, final String addressLine1,
             final String addressLine2, final String city, final String state, final String country, final String zip,
             final String housePhoneNumber, final String mobilePhoneNumber, final String comment, final boolean active,
-            final List<GuarantorFundingDetails> guarantorFundDetails) {
+                      final Integer approvalStatus,final List<GuarantorFundingDetails> guarantorFundDetails) {
         this.loan = loan;
         this.clientRelationshipType = clientRelationshipType;
         this.gurantorType = gurantorType;
@@ -124,6 +127,7 @@ public class Guarantor extends AbstractPersistableCustom {
         this.mobilePhoneNumber = StringUtils.defaultIfEmpty(mobilePhoneNumber, null);
         this.comment = StringUtils.defaultIfEmpty(comment, null);
         this.active = active;
+        this.approvalStatus = approvalStatus;
         this.guarantorFundDetails.addAll(guarantorFundDetails);
     }
 
@@ -132,6 +136,7 @@ public class Guarantor extends AbstractPersistableCustom {
         final Integer gurantorType = command.integerValueSansLocaleOfParameterNamed(GuarantorJSONinputParams.GUARANTOR_TYPE_ID.getValue());
         final Long entityId = command.longValueOfParameterNamed(GuarantorJSONinputParams.ENTITY_ID.getValue());
         final boolean active = true;
+        final Integer approvalStatus = GuarantorApprovalStatus.PENDING.getValue();
         if (GuarantorType.EXTERNAL.getValue().equals(gurantorType)) {
             final String firstname = command.stringValueOfParameterNamed(GuarantorJSONinputParams.FIRSTNAME.getValue());
             final String lastname = command.stringValueOfParameterNamed(GuarantorJSONinputParams.LASTNAME.getValue());
@@ -147,11 +152,11 @@ public class Guarantor extends AbstractPersistableCustom {
             final String comment = command.stringValueOfParameterNamed(GuarantorJSONinputParams.COMMENT.getValue());
 
             return new Guarantor(loan, clientRelationshipType, gurantorType, entityId, firstname, lastname, dateOfBirth, addressLine1,
-                    addressLine2, city, state, country, zip, housePhoneNumber, mobilePhoneNumber, comment, active, fundingDetails);
+                    addressLine2, city, state, country, zip, housePhoneNumber, mobilePhoneNumber, comment, active, approvalStatus, fundingDetails);
         }
 
         return new Guarantor(loan, clientRelationshipType, gurantorType, entityId, null, null, null, null, null, null, null, null, null,
-                null, null, null, active, fundingDetails);
+                null, null, null, active, approvalStatus, fundingDetails);
 
     }
 
@@ -297,6 +302,30 @@ public class Guarantor extends AbstractPersistableCustom {
 
     public void updateStatus(final boolean status) {
         this.active = status;
+    }
+
+    public void approve() {
+        this.approvalStatus = GuarantorApprovalStatus.APPROVED.getValue();
+    }
+
+    public void reject() {
+        this.approvalStatus = GuarantorApprovalStatus.REJECTED.getValue();
+    }
+
+    public boolean isPending() {
+        return GuarantorApprovalStatus.fromInt(this.approvalStatus).isPending();
+    }
+
+    public boolean isApproved() {
+        return GuarantorApprovalStatus.fromInt(this.approvalStatus).isApproved();
+    }
+
+    public boolean isRejected() {
+        return GuarantorApprovalStatus.fromInt(this.approvalStatus).isRejected();
+    }
+
+    public Integer getApprovalStatus() {
+        return this.approvalStatus;
     }
 
     public void addFundingDetails(final List<GuarantorFundingDetails> fundingDetails) {

@@ -181,6 +181,37 @@ public class GuarantorsApiResource {
         return this.apiJsonSerializerService.serialize(result);
     }
 
+    @POST
+    @Path("{guarantorId}")
+    @Consumes({ MediaType.APPLICATION_JSON })
+    @Produces({ MediaType.APPLICATION_JSON })
+    public String guarantorCommand(@PathParam("loanId") final Long loanId,
+                                   @PathParam("guarantorId") final Long guarantorId,
+                                   @QueryParam("command") final String command,
+                                   final String jsonRequestBody) {
+
+        CommandWrapper commandRequest = null;
+
+        if ("approve".equalsIgnoreCase(command)) {
+            commandRequest = new CommandWrapperBuilder()
+                    .approveGuarantor(loanId, guarantorId)
+                    .withJson(jsonRequestBody)
+                    .build();
+        } else if ("reject".equalsIgnoreCase(command)) {
+            commandRequest = new CommandWrapperBuilder()
+                    .rejectGuarantor(loanId, guarantorId)
+                    .withJson(jsonRequestBody)
+                    .build();
+        } else {
+            throw new IllegalArgumentException("Unsupported command: " + command);
+        }
+
+        final CommandProcessingResult result =
+                this.commandsSourceWritePlatformService.logCommandSource(commandRequest);
+
+        return this.apiJsonSerializerService.serialize(result);
+    }
+
     @DELETE
     @Path("{guarantorId}")
     @Consumes({ MediaType.APPLICATION_JSON })

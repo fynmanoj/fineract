@@ -16,21 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.fineract.portfolio.loanaccount.guarantor.service;
+package org.apache.fineract.portfolio.loanaccount.guarantor.exception;
 
-import org.apache.fineract.infrastructure.core.api.JsonCommand;
-import org.apache.fineract.infrastructure.core.data.CommandProcessingResult;
+import org.apache.fineract.infrastructure.core.exception.AbstractPlatformDomainRuleException;
 
-public interface GuarantorWritePlatformService {
+/**
+ * Thrown when attempting to approve or reject a guarantor that is not in the PENDING state.
+ */
+public class GuarantorNotPendingException extends AbstractPlatformDomainRuleException {
 
-    CommandProcessingResult createGuarantor(Long loanId, JsonCommand command);
-
-    CommandProcessingResult updateGuarantor(Long loanId, Long guarantorId, JsonCommand command);
-
-    CommandProcessingResult approveGuarantor(Long loanId, Long guarantorId);
-
-    CommandProcessingResult rejectGuarantor(Long loanId, Long guarantorId);
-
-    CommandProcessingResult removeGuarantor(Long loanId, Long guarantorId, Long guarantorFundingId);
-
+    public GuarantorNotPendingException(final Long guarantorId) {
+        super(
+                "error.msg.guarantor.is.not.pending",
+                "Guarantor with id " + guarantorId + " cannot be approved or rejected because it is no longer in the PENDING state.",
+                guarantorId);
+    }
 }

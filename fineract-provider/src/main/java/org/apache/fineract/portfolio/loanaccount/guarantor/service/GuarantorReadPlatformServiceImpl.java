@@ -121,6 +121,7 @@ public class GuarantorReadPlatformServiceImpl implements GuarantorReadPlatformSe
         private final StringBuilder sqlBuilder = new StringBuilder(
                 " g.id as id, g.loan_id as loanId, g.client_reln_cv_id clientRelationshipTypeId, g.entity_id as entityId, g.type_enum guarantorType ,g.firstname as firstname, g.lastname as lastname, g.dob as dateOfBirth, g.address_line_1 as addressLine1, g.address_line_2 as addressLine2, g.city as city, g.state as state, g.country as country, g.zip as zip, g.house_phone_number as housePhoneNumber, g.mobile_number as mobilePhoneNumber, g.comment as comment, ")
                 .append(" g.is_active as guarantorStatus,")//
+                .append(" g.approval_status as approvalStatus,")//
                 .append(" cv.code_value as typeName, ")//
                 .append("gfd.amount,")//
                 .append(this.guarantorFundingMapper.schema())//
@@ -166,6 +167,7 @@ public class GuarantorReadPlatformServiceImpl implements GuarantorReadPlatformSe
             final String housePhoneNumber = rs.getString("housePhoneNumber");
             final String comment = rs.getString("comment");
             final boolean status = rs.getBoolean("guarantorStatus");
+            final Integer approvalStatus = rs.getInt("approvalStatus");
             final Collection<PortfolioAccountData> accountLinkingOptions = null;
             List<GuarantorFundingData> guarantorFundingDetails = null;
             GuarantorFundingData guarantorFundingData = this.guarantorFundingMapper.mapRow(rs, rowNum);
@@ -187,7 +189,7 @@ public class GuarantorReadPlatformServiceImpl implements GuarantorReadPlatformSe
 
             return new GuarantorData(id, loanId, clientRelationshipType, entityId, guarantorType, firstname, lastname, dob, addressLine1,
                     addressLine2, city, state, zip, country, mobileNumber, housePhoneNumber, comment, null, null, null, status,
-                    guarantorFundingDetails, null, null, accountLinkingOptions);
+                    approvalStatus, guarantorFundingDetails, null, null, accountLinkingOptions);
         }
     }
 

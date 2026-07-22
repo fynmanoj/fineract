@@ -62,6 +62,7 @@ public class GuarantorData {
     private final LocalDate dob;
     private final Collection<GuarantorFundingData> guarantorFundingDetails;
     private final boolean status;
+    private final Integer approvalStatus;
 
     // template
     @SuppressWarnings("unused")
@@ -119,6 +120,7 @@ public class GuarantorData {
         this.comment = null;
         this.guarantorFundingDetails = null;
         this.status = false;
+        this.approvalStatus = null;
         this.guarantorTypeOptions = null;
         this.allowedClientRelationshipTypes = null;
         this.accountLinkingOptions = null;
@@ -129,7 +131,7 @@ public class GuarantorData {
         final Collection<GuarantorFundingData> guarantorFundingDetails = null;
         final boolean status = false;
         return new GuarantorData(null, null, null, null, GuarantorEnumerations.guarantorType(GuarantorType.CUSTOMER), null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, status, guarantorFundingDetails,
+                null, null, null, null, null, null, null, null, null, null, null, null, status, null, guarantorFundingDetails,
                 guarantorTypeOptions, allowedClientRelationshipTypes, accountLinkingOptions);
     }
 
@@ -139,7 +141,7 @@ public class GuarantorData {
                 guarantorData.guarantorType, guarantorData.firstname, guarantorData.lastname, guarantorData.dob, guarantorData.addressLine1,
                 guarantorData.addressLine2, guarantorData.city, guarantorData.state, guarantorData.zip, guarantorData.country,
                 guarantorData.mobileNumber, guarantorData.housePhoneNumber, guarantorData.comment, guarantorData.officeName,
-                guarantorData.joinedDate, guarantorData.externalId, guarantorData.status, guarantorData.guarantorFundingDetails,
+                guarantorData.joinedDate, guarantorData.externalId, guarantorData.status, guarantorData.approvalStatus, guarantorData.guarantorFundingDetails,
                 guarantorTypeOptions, allowedClientRelationshipTypes, accountLinkingOptions);
     }
 
@@ -147,14 +149,14 @@ public class GuarantorData {
         return new GuarantorData(guarantorData.id, guarantorData.loanId, guarantorData.clientRelationshipType, guarantorData.entityId,
                 guarantorData.guarantorType, clientData.getFirstname(), clientData.getLastname(), null, null, null, null, null, null, null,
                 null, null, null, clientData.getOfficeName(), clientData.getActivationDate(), clientData.getExternalId().getValue(),
-                guarantorData.status, guarantorData.guarantorFundingDetails, null, guarantorData.allowedClientRelationshipTypes,
+                guarantorData.status, guarantorData.approvalStatus, guarantorData.guarantorFundingDetails, null, guarantorData.allowedClientRelationshipTypes,
                 guarantorData.accountLinkingOptions);
     }
 
     public static GuarantorData mergeStaffData(final StaffData staffData, final GuarantorData guarantorData) {
         return new GuarantorData(guarantorData.id, guarantorData.loanId, guarantorData.clientRelationshipType, guarantorData.entityId,
                 guarantorData.guarantorType, staffData.getFirstname(), staffData.getLastname(), null, null, null, null, null, null, null,
-                null, null, null, staffData.getOfficeName(), null, null, guarantorData.status, guarantorData.guarantorFundingDetails, null,
+                null, null, null, staffData.getOfficeName(), null, null, guarantorData.status, guarantorData.approvalStatus, guarantorData.guarantorFundingDetails, null,
                 guarantorData.allowedClientRelationshipTypes, guarantorData.accountLinkingOptions);
     }
 
@@ -162,7 +164,7 @@ public class GuarantorData {
             final EnumOptionData guarantorType, final String firstname, final String lastname, final LocalDate dob,
             final String addressLine1, final String addressLine2, final String city, final String state, final String zip,
             final String country, final String mobileNumber, final String housePhoneNumber, final String comment, final String officeName,
-            final LocalDate joinedDate, final String externalId, final boolean status,
+            final LocalDate joinedDate, final String externalId, final boolean status, final Integer approvalStatus,
             Collection<GuarantorFundingData> guarantorFundingDetails, final List<EnumOptionData> guarantorTypeOptions,
             final Collection<CodeValueData> allowedClientRelationshipTypes, final Collection<PortfolioAccountData> accountLinkingOptions) {
         this.id = id;
@@ -186,6 +188,7 @@ public class GuarantorData {
         this.joinedDate = joinedDate;
         this.externalId = externalId;
         this.status = status;
+        this.approvalStatus = approvalStatus;
         this.guarantorFundingDetails = guarantorFundingDetails;
         this.guarantorTypeOptions = guarantorTypeOptions;
         this.allowedClientRelationshipTypes = allowedClientRelationshipTypes;
