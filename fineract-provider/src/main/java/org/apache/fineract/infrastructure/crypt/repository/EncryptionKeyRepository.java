@@ -18,6 +18,8 @@
  */
 package org.apache.fineract.infrastructure.crypt.repository;
 
+import java.util.Optional;
+
 import org.apache.fineract.infrastructure.crypt.domain.EncryptionKey;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -25,5 +27,5 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface EncryptionKeyRepository
         extends JpaRepository<EncryptionKey, Long>, JpaSpecificationExecutor<EncryptionKey> {
 
-    EncryptionKey findByKeyType(String keyType);
+    Optional<EncryptionKey> findByKeyType(String keyType);
 }

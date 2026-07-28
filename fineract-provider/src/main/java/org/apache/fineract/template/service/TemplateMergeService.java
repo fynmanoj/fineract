@@ -28,9 +28,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.net.Authenticator;
 import java.net.HttpURLConnection;
-import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -40,14 +38,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Base64;
+import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.core.config.FineractProperties;
-import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.template.domain.Template;
 import org.apache.fineract.template.domain.TemplateFunctions;
 import org.apache.fineract.template.exception.TemplateForbiddenException;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.apache.fineract.infrastructure.core.config.FineractProperties.FineractTemplateProperties.InternalUser;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -102,8 +101,13 @@ public class TemplateMergeService {
                     scopes.put("BASE_URI", fineractProperties.getBaseUrl());
                 }
                 if (!url.startsWith("http")) {
-                    log.info("Base URL : {}", scopes.get("BASE_URI"));
-                    url = scopes.get("BASE_URI") + url;
+                    String baseUrl = scopes.get("BASE_URI").toString();
+
+                    if (baseUrl.endsWith("/") && url.startsWith("/")) {
+                        url = baseUrl.substring(0, baseUrl.length() - 1) + url;
+                    } else {
+                        url = baseUrl + url;
+                    }
                 }
                 try {
                     scopes.put(entry.getKey(), getMapFromUrl(url));
@@ -117,16 +121,34 @@ public class TemplateMergeService {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> getMapFromUrl(final String url) throws IOException {
+
         final HttpURLConnection connection = getConnection(url);
 
-        final String response = getStringFromInputStream(connection.getInputStream());
-        HashMap<String, Object> result = new HashMap<>();
-        if (connection.getContentType().equals("text/plain")) {
-            result.put("src", response);
-        } else {
-            result = new ObjectMapper().readValue(response, HashMap.class);
+        try {
+
+            final String response = getStringFromInputStream(connection.getInputStream());
+
+            HashMap<String, Object> result = new HashMap<>();
+
+            if ("text/plain".equals(connection.getContentType())) {
+                result.put("src", response);
+            } else {
+                result = new ObjectMapper().readValue(response, HashMap.class);
+            }
+
+            return result;
+
+        } catch (IOException e) {
+
+            log.error("HTTP Status : {}", connection.getResponseCode());
+            log.error("URL         : {}", url);
+
+            if (connection.getErrorStream() != null) {
+                log.error("Error Body : {}", getStringFromInputStream(connection.getErrorStream()));
+            }
+
+            throw e;
         }
-        return result;
     }
 
     private HttpURLConnection getConnection(final String url) {
@@ -150,26 +172,43 @@ public class TemplateMergeService {
             }
         }
 
-        String authToken = ThreadLocalContextUtil.getAuthToken();
-        if (authToken == null) {
-            final String name = SecurityContextHolder.getContext().getAuthentication().getName();
-            final String password = SecurityContextHolder.getContext().getAuthentication().getCredentials().toString();
+        final InternalUser internalUser =
+                fineractProperties.getTemplate().getInternalUser();
 
-            Authenticator.setDefault(new Authenticator() {
-
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(name, password.toCharArray());
-                }
-            });
-        }
+        final String name = internalUser.getUsername();
+        final String password = internalUser.getPassword();
 
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
-            if (authToken != null) {
-                connection.setRequestProperty("Authorization", fineractProperties.getSecurity().getBasicauth().getTokentype()+ " " + authToken);// NOSONAR
+            final String credentials = name + ":" + password;
+
+            final String basicAuth = Base64.getEncoder()
+                    .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+
+            if (ThreadLocalContextUtil.getTenant() == null) {
+                throw new IllegalStateException("Tenant context is missing");
             }
+
+            String tenantId = ThreadLocalContextUtil.getTenant().getTenantIdentifier();
+
+            connection.setRequestProperty(
+                    "Authorization",
+                    "Basic " + basicAuth);
+
+            connection.setRequestProperty(
+                    "Fineract-Platform-TenantId",
+                    tenantId);
+
+            connection.setRequestProperty(
+                    "Accept",
+                    "application/json");
+
+            connection.setRequestProperty(
+                    "Content-Type",
+                    "application/json");
+
+            connection.setRequestMethod("GET");
             TrustModifier.relaxHostChecking(connection);
             connection.setDoInput(true);
 
