@@ -18,24 +18,33 @@
  */
 package org.apache.fineract.portfolio.delinquency.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.core.api.JsonCommand;
 import org.apache.fineract.infrastructure.core.data.CommandProcessingResult;
 import org.apache.fineract.infrastructure.core.data.CommandProcessingResultBuilder;
 import org.apache.fineract.infrastructure.core.exception.PlatformDataIntegrityException;
+import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
+import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
+import org.apache.fineract.infrastructure.event.business.BusinessEventListener;
 import org.apache.fineract.infrastructure.event.business.domain.loan.LoanAccountDelinquencyPauseChangedBusinessEvent;
 import org.apache.fineract.infrastructure.event.business.domain.loan.LoanDelinquencyRangeChangeBusinessEvent;
 import org.apache.fineract.infrastructure.event.business.service.BusinessEventNotifierService;
+import org.apache.fineract.infrastructure.hooks.event.HookEvent;
+import org.apache.fineract.infrastructure.hooks.event.HookEventSource;
+import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.portfolio.delinquency.api.DelinquencyApiConstants;
 import org.apache.fineract.portfolio.delinquency.data.DelinquencyBucketData;
 import org.apache.fineract.portfolio.delinquency.data.DelinquencyRangeData;
@@ -66,6 +75,8 @@ import org.apache.fineract.portfolio.loanaccount.domain.Loan;
 import org.apache.fineract.portfolio.loanaccount.domain.LoanRepaymentScheduleInstallment;
 import org.apache.fineract.portfolio.loanaccount.domain.LoanRepositoryWrapper;
 import org.apache.fineract.portfolio.loanproduct.domain.LoanProductRepository;
+import org.apache.fineract.useradministration.domain.AppUser;
+import org.springframework.context.ApplicationContext;
 import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
@@ -82,12 +93,22 @@ public class DelinquencyWritePlatformServiceImpl implements DelinquencyWritePlat
     private final LoanRepositoryWrapper loanRepository;
     private final LoanProductRepository loanProductRepository;
     private final BusinessEventNotifierService businessEventNotifierService;
+    private final ApplicationContext applicationContext;
+    private final PlatformSecurityContext context;
+    private final ToApiJsonSerializer<Object> toApiResultJsonSerializer;
     private final LoanDelinquencyDomainService loanDelinquencyDomainService;
     private final LoanInstallmentDelinquencyTagRepository loanInstallmentDelinquencyTagRepository;
     private final DelinquencyReadPlatformService delinquencyReadPlatformService;
     private final LoanDelinquencyActionRepository loanDelinquencyActionRepository;
     private final DelinquencyActionParseAndValidator delinquencyActionParseAndValidator;
     private final DelinquencyEffectivePauseHelper delinquencyEffectivePauseHelper;
+
+    @PostConstruct
+    public void addListeners() {
+        businessEventNotifierService.addPostBusinessEventListener(
+                LoanDelinquencyRangeChangeBusinessEvent.class,
+                new DelinquencyHookListener());
+    }
 
     @Override
     public CommandProcessingResult createDelinquencyRange(JsonCommand command) {
@@ -600,6 +621,52 @@ public class DelinquencyWritePlatformServiceImpl implements DelinquencyWritePlat
                     .filter(tag -> tag.getInstallment() == null).map(tag -> tag.getId()).toList();
             if (loanInstallmentTagsForDelete.size() > 0) {
                 loanInstallmentDelinquencyTagRepository.deleteAllLoanInstallmentsTagsByIds(loanInstallmentTagsForDelete);
+            }
+        }
+    }
+
+    private final class DelinquencyHookListener
+            implements BusinessEventListener<LoanDelinquencyRangeChangeBusinessEvent> {
+
+        @Override
+        public void onBusinessEvent(LoanDelinquencyRangeChangeBusinessEvent event) {
+            try {
+
+                Loan loan = event.get();
+
+                Map<String, Object> payload = new LinkedHashMap<>();
+
+                payload.put("loanId", loan.getId());
+                payload.put("clientId", loan.getClientId());
+
+                payload.put("entityName", "LOAN");
+                payload.put("actionName", "DELINQUENCYCHANGE");
+                payload.put("timestamp", Instant.now().toString());
+
+                AppUser appUser = context.authenticatedUser();
+
+                String serializedPayload =
+                        toApiResultJsonSerializer.serialize(payload);
+
+                HookEventSource hookEventSource =
+                        new HookEventSource("LOAN", "DELINQUENCYCHANGE");
+
+                HookEvent hookEvent =
+                        new HookEvent(
+                                hookEventSource,
+                                serializedPayload,
+                                appUser,
+                                ThreadLocalContextUtil.getContext());
+
+                applicationContext.publishEvent(hookEvent);
+
+                log.info(
+                        "Published HookEvent for delinquent loan {} (client {})",
+                        loan.getId(),
+                        loan.getClientId());
+
+            } catch (Exception e) {
+                log.error("Failed to publish delinquency HookEvent", e);
             }
         }
     }
