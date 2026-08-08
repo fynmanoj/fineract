@@ -355,6 +355,24 @@ public class CommandWrapperBuilder {
         return this;
     }
 
+    public CommandWrapperBuilder approveGuarantor(final Long loanId, final Long guarantorId) {
+        this.actionName = "APPROVE";
+        this.entityName = "GUARANTOR";
+        this.entityId = guarantorId;
+        this.loanId = loanId;
+        this.href = "/loans/" + loanId + "/guarantors/" + guarantorId + "?command=approve";
+        return this;
+    }
+
+    public CommandWrapperBuilder rejectGuarantor(final Long loanId, final Long guarantorId) {
+        this.actionName = "REJECT";
+        this.entityName = "GUARANTOR";
+        this.entityId = guarantorId;
+        this.loanId = loanId;
+        this.href = "/loans/" + loanId + "/guarantors/" + guarantorId + "?command=reject";
+        return this;
+    }
+
     public CommandWrapperBuilder deleteGuarantor(final Long loanId, final Long guarantorId, final Long guarantorFundingId) {
         this.actionName = "DELETE";
         this.entityName = "GUARANTOR";

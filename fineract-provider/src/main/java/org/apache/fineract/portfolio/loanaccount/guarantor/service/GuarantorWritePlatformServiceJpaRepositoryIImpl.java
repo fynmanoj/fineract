@@ -50,6 +50,7 @@ import org.apache.fineract.portfolio.loanaccount.guarantor.domain.GuarantorRepos
 import org.apache.fineract.portfolio.loanaccount.guarantor.domain.GuarantorType;
 import org.apache.fineract.portfolio.loanaccount.guarantor.exception.DuplicateGuarantorException;
 import org.apache.fineract.portfolio.loanaccount.guarantor.exception.GuarantorNotFoundException;
+import org.apache.fineract.portfolio.loanaccount.guarantor.exception.GuarantorNotPendingException;
 import org.apache.fineract.portfolio.loanaccount.guarantor.exception.InvalidGuarantorException;
 import org.apache.fineract.portfolio.loanaccount.guarantor.serialization.GuarantorCommandFromApiJsonDeserializer;
 import org.apache.fineract.portfolio.savings.domain.SavingsAccount;
@@ -124,8 +125,8 @@ public class GuarantorWritePlatformServiceJpaRepositoryIImpl implements Guaranto
                 guarantorFundingDetails.add(fundingDetails);
                 if (loan.isDisbursed()
                         || (loan.isApproved() && (loan.getGuaranteeAmount() != null || loan.loanProduct().isHoldGuaranteeFundsEnabled()))) {
-                    this.guarantorDomainService.assignGuarantor(fundingDetails, DateUtils.getBusinessLocalDate());
-                    loan.updateGuaranteeAmount(fundingDetails.getAmount());
+                   // this.guarantorDomainService.assignGuarantor(fundingDetails, DateUtils.getBusinessLocalDate());
+                    //loan.updateGuaranteeAmount(fundingDetails.getAmount());
                 }
             }
 
@@ -254,6 +255,75 @@ public class GuarantorWritePlatformServiceJpaRepositoryIImpl implements Guaranto
             handleGuarantorDataIntegrityIssues(throwable, dve);
             return CommandProcessingResult.empty();
         }
+    }
+
+    @Override
+    @Transactional
+    public CommandProcessingResult approveGuarantor(final Long loanId, final Long guarantorId) {
+
+        final Loan loan = this.loanRepositoryWrapper.findOneWithNotFoundDetection(loanId, true);
+
+        validateLoanStatus(loan);
+
+        final Guarantor guarantor = this.guarantorRepository.findByLoanAndId(loan, guarantorId);
+
+        if (guarantor == null) {
+            throw new GuarantorNotFoundException(loanId, guarantorId);
+        }
+
+        if (!guarantor.isPending()) {
+            throw new GuarantorNotPendingException(guarantor.getId());
+        }
+
+        guarantor.approve();
+
+        for (GuarantorFundingDetails fundingDetails : guarantor.getGuarantorFundDetails()) {
+
+            this.guarantorDomainService.assignGuarantor(
+                    fundingDetails,
+                    DateUtils.getBusinessLocalDate());
+
+            loan.updateGuaranteeAmount(fundingDetails.getAmount());
+        }
+
+        this.guarantorRepository.saveAndFlush(guarantor);
+
+        return new CommandProcessingResultBuilder()
+                .withEntityId(guarantor.getId())
+                .withLoanId(loan.getId())
+                .withOfficeId(guarantor.getOfficeId())
+                .withClientId(guarantor.getClientId())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public CommandProcessingResult rejectGuarantor(final Long loanId, final Long guarantorId) {
+
+        final Loan loan = this.loanRepositoryWrapper.findOneWithNotFoundDetection(loanId, true);
+
+        validateLoanStatus(loan);
+
+        final Guarantor guarantor = this.guarantorRepository.findByLoanAndId(loan, guarantorId);
+
+        if (guarantor == null) {
+            throw new GuarantorNotFoundException(loanId, guarantorId);
+        }
+
+        if (!guarantor.isPending()) {
+            throw new GuarantorNotPendingException(guarantor.getId());
+        }
+
+        guarantor.reject();
+
+        this.guarantorRepository.saveAndFlush(guarantor);
+
+        return new CommandProcessingResultBuilder()
+                .withEntityId(guarantor.getId())
+                .withLoanId(loan.getId())
+                .withOfficeId(guarantor.getOfficeId())
+                .withClientId(guarantor.getClientId())
+                .build();
     }
 
     @Override
