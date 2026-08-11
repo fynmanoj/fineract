@@ -34,8 +34,6 @@ limitations under the License.
 
         <insert tableName="m_appuser">
 
-            <column name="id" valueNumeric="4"/>
-
             <column name="is_deleted" valueBoolean="false"/>
 
             <column name="office_id" valueNumeric="1"/>
@@ -90,8 +88,9 @@ limitations under the License.
 
         <insert tableName="m_appuser_role">
 
-            <column name="appuser_id"
-                    valueNumeric="4"/>
+            <column
+                    name="appuser_id"
+                    valueComputed="(SELECT id FROM m_appuser WHERE username='template_system')"/>
 
             <column name="role_id"
                     valueNumeric="1"/>
