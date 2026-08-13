@@ -19,6 +19,7 @@
 package org.apache.fineract.infrastructure.configuration.domain;
 
 import java.time.LocalDate;
+import java.util.Set;
 import org.apache.fineract.infrastructure.cache.domain.CacheType;
 
 public interface ConfigurationDomainService {
@@ -138,6 +139,8 @@ public interface ConfigurationDomainService {
     String retrieveReportExportS3FolderName();
 
     String getAccrualDateConfigForCharge();
+
+    Set<String> getSystemUsernames();
 
     Integer retrieveEncKeyExpirySeconds(String type);
 }

@@ -33,6 +33,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -52,6 +55,8 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
     private static final String EXTERNAL_EVENT_BATCH_SIZE = "external-event-batch-size";
 
     private static final String REPORT_EXPORT_S3_FOLDER_NAME = "report-export-s3-folder-name";
+
+    private static final String SYSTEM_USERS = "system-users";
 
     public static final String CHARGE_ACCRUAL_DATE_CRITERIA = "charge-accrual-date";
     private final PermissionRepository permissionRepository;
@@ -515,6 +520,31 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
         }
         return value;
     }
+
+    @Override
+    public Set<String> getSystemUsernames() {
+        try {
+            final GlobalConfigurationPropertyData property =
+                    getGlobalConfigurationPropertyData(SYSTEM_USERS);
+
+            if (property != null
+                    && property.isEnabled()
+                    && StringUtils.isNotBlank(property.getStringValue())) {
+
+                return Arrays.stream(property.getStringValue().split(","))
+                        .map(String::trim)
+                        .filter(StringUtils::isNotBlank)
+                        .collect(Collectors.toSet());
+            }
+        } catch (GlobalConfigurationPropertyNotFoundException e) {
+            log.warn(
+                    "Global configuration '{}' not found. Defaulting to empty system-users set.",
+                    SYSTEM_USERS);
+        }
+
+        return Set.of();
+    }
+
     @Override
     public Integer retrieveEncKeyExpirySeconds(String type) {
         final String propertyName = "enc-key-" + type + "-valid-upto-seconds";
