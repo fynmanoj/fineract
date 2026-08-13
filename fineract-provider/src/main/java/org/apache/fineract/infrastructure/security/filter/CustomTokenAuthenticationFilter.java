@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
 import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.infrastructure.security.service.SessionHandlerService;
 import org.apache.fineract.infrastructure.security.service.TenantAwareJpaPlatformUserDetailsService;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 
 @Component
 public class CustomTokenAuthenticationFilter extends OncePerRequestFilter {
@@ -32,6 +34,9 @@ public class CustomTokenAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private SessionHandlerService sessionHandlerService;
+
+    @Autowired
+    private ConfigurationDomainService configurationDomainService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -50,10 +55,22 @@ public class CustomTokenAuthenticationFilter extends OncePerRequestFilter {
             String username = sessionHandlerService.validateAndExtractUsername(token);
             ThreadLocalContextUtil.setAuthToken(token);
 
-            if (username != null ) {
+            if (username != null) {
+
+                final Set<String> systemUsers = configurationDomainService.getSystemUsernames();
+
+                if (systemUsers.contains(username)) {
+                    throw new BadCredentialsException(
+                            "System users are not permitted to authenticate via session tokens.");
+                }
+
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities());
 
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);

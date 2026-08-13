@@ -25,6 +25,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.Set;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.time.StopWatch;
@@ -169,8 +170,15 @@ public class TenantAwareBasicAuthenticationFilter extends BasicAuthenticationFil
     @Override
     protected void onSuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, Authentication authResult)
             throws IOException {
-        super.onSuccessfulAuthentication(request, response, authResult);
         AppUser user = (AppUser) authResult.getPrincipal();
+
+        final Set<String> systemUsers = configurationDomainService.getSystemUsernames();
+
+        if (!systemUsers.contains(user.getUsername())) {
+            throw new BadCredentialsException(
+                    "Only system users are permitted to authenticate via Basic Authentication.");
+        }
+        super.onSuccessfulAuthentication(request, response, authResult);
 
         if (userNotificationService.hasUnreadUserNotifications(user.getId())) {
             response.addHeader("X-Notification-Refresh", "true");
