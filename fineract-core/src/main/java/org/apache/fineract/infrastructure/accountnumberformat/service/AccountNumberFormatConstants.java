@@ -64,5 +64,6 @@ public final class AccountNumberFormatConstants {
     public static final String PREFIX_TYPE_ENUM_COLUMN_NAME = "prefix_type_enum";
     public static final String ACCOUNT_TYPE_UNIQUE_CONSTRAINT_NAME = "account_type_enum";
     public static final String PREFIX_CHARACTER_COLUMN_NAME = "prefix_character";
+    public static final String NUMBERING_STRATEGY_ENUM_COLUMN_NAME = "numbering_strategy_enum";
 
 }

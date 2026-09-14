@@ -23,6 +23,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import org.apache.fineract.infrastructure.accountnumberformat.domain.AccountNumberFormatEnumerations.AccountNumberPrefixType;
+import org.apache.fineract.infrastructure.accountnumberformat.domain.AccountNumberFormatEnumerations.AccountNumberStrategyType;
 import org.apache.fineract.infrastructure.accountnumberformat.service.AccountNumberFormatConstants;
 import org.apache.fineract.infrastructure.core.domain.AbstractPersistableCustom;
 
@@ -39,6 +40,9 @@ public class AccountNumberFormat extends AbstractPersistableCustom {
 
     @Column(name = AccountNumberFormatConstants.PREFIX_CHARACTER_COLUMN_NAME, nullable = true)
     private String prefixCharacter;
+
+    @Column(name = AccountNumberFormatConstants.NUMBERING_STRATEGY_ENUM_COLUMN_NAME, nullable = false)
+    private Integer numberingStrategyEnum = AccountNumberStrategyType.ID_BASED.getValue();
 
     protected AccountNumberFormat() {
         //
@@ -86,5 +90,13 @@ public class AccountNumberFormat extends AbstractPersistableCustom {
 
     public void setPrefixCharacter(String prefixCharacter) {
         this.prefixCharacter = prefixCharacter;
+    }
+
+    public Integer getNumberingStrategyEnum() {
+        return this.numberingStrategyEnum;
+    }
+
+    public boolean isSequenceTableStrategy() {
+        return AccountNumberStrategyType.SEQUENCE_TABLE.getValue().equals(this.numberingStrategyEnum);
     }
 }

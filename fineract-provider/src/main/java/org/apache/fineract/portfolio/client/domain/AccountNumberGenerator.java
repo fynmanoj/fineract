@@ -21,7 +21,6 @@ package org.apache.fineract.portfolio.client.domain;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.fineract.infrastructure.accountnumberformat.domain.AccountNumberFormat;
@@ -34,7 +33,10 @@ import org.apache.fineract.portfolio.loanaccount.domain.Loan;
 import org.apache.fineract.portfolio.loanaccount.domain.LoanRepository;
 import org.apache.fineract.portfolio.savings.domain.SavingsAccount;
 import org.apache.fineract.portfolio.savings.domain.SavingsAccountRepository;
+import org.apache.fineract.portfolio.client.exception.AccountNumberStrategyNotConfiguredException;
+import org.apache.fineract.portfolio.client.service.AccountNumberSequenceService;
 import org.apache.fineract.portfolio.shareaccounts.domain.ShareAccount;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -42,10 +44,11 @@ import org.springframework.stereotype.Component;
  * it ensuring the identifier is always of a given <code>maxLength</code>.
  */
 @Component
-@AllArgsConstructor
 public class AccountNumberGenerator {
 
     private static final int maxLength = 9;
+    private static final String ACCOUNT_NUMBER_SEQUENCE_BLOCK_SIZE = "account-number-sequence-block-size";
+    private static final int DEFAULT_SEQUENCE_BLOCK_SIZE = 250;
 
     private static final String ID = "id";
     private static final String ENTITY_TYPE = "entityType";
@@ -60,9 +63,21 @@ public class AccountNumberGenerator {
     private final LoanRepository loanRepository;
     private final SavingsAccountRepository savingsAccountRepository;
 
+    @Autowired(required = false)
+    private AccountNumberSequenceService accountNumberSequenceService;
+
+    public AccountNumberGenerator(final ConfigurationReadPlatformService configurationReadPlatformService,
+            final ClientRepository clientRepository, final LoanRepository loanRepository,
+            final SavingsAccountRepository savingsAccountRepository) {
+        this.configurationReadPlatformService = configurationReadPlatformService;
+        this.clientRepository = clientRepository;
+        this.loanRepository = loanRepository;
+        this.savingsAccountRepository = savingsAccountRepository;
+    }
+
     public String generate(Client client, AccountNumberFormat accountNumberFormat) {
         Map<String, String> propertyMap = new HashMap<>();
-        propertyMap.put(ID, client.getId().toString());
+        propertyMap.put(ID, resolveClientNumericId(client, accountNumberFormat));
         propertyMap.put(OFFICE_NAME, client.getOffice().getName());
         propertyMap.put(ENTITY_TYPE, "client");
         CodeValue clientType = client.clientType();
@@ -245,6 +260,22 @@ public class AccountNumberGenerator {
         propertyMap.put(ID, group.getId().toString());
         propertyMap.put(OFFICE_NAME, group.getOffice().getName());
         return generateAccountNumber(propertyMap, accountNumberFormat);
+    }
+
+    private String resolveClientNumericId(final Client client, final AccountNumberFormat accountNumberFormat) {
+        if (accountNumberFormat != null && accountNumberFormat.isSequenceTableStrategy()) {
+            if (this.accountNumberSequenceService == null) {
+                throw new AccountNumberStrategyNotConfiguredException();
+            }
+            final GlobalConfigurationPropertyData blockSizeConfig = this.configurationReadPlatformService
+                    .retrieveGlobalConfiguration(ACCOUNT_NUMBER_SEQUENCE_BLOCK_SIZE);
+            int blockSize = DEFAULT_SEQUENCE_BLOCK_SIZE;
+            if (blockSizeConfig != null && blockSizeConfig.getValue() != null) {
+                blockSize = blockSizeConfig.getValue().intValue();
+            }
+            return Long.toString(this.accountNumberSequenceService.nextValue(blockSize));
+        }
+        return client.getId().toString();
     }
 
 }

@@ -52,6 +52,43 @@ public final class AccountNumberFormatEnumerations {
     public static final Set<AccountNumberPrefixType> accountNumberPrefixesForGroups = Collections
             .unmodifiableSet(new HashSet<>(Collections.singletonList(AccountNumberPrefixType.OFFICE_NAME)));
 
+    public enum AccountNumberStrategyType {
+
+        ID_BASED(1, "accountNumberStrategy.idBased"), SEQUENCE_TABLE(2, "accountNumberStrategy.sequenceTable");
+
+        private final Integer value;
+        private final String code;
+
+        AccountNumberStrategyType(final Integer value, final String code) {
+            this.value = value;
+            this.code = code;
+        }
+
+        public Integer getValue() {
+            return this.value;
+        }
+
+        public String getCode() {
+            return this.code;
+        }
+
+        private static final Map<Integer, AccountNumberStrategyType> intToEnumMap = new HashMap<>();
+
+        static {
+            for (final AccountNumberStrategyType type : AccountNumberStrategyType.values()) {
+                intToEnumMap.put(type.value, type);
+            }
+        }
+
+        public static AccountNumberStrategyType fromInt(final int i) {
+            return intToEnumMap.get(Integer.valueOf(i));
+        }
+
+        public boolean isSequenceTable() {
+            return SEQUENCE_TABLE.getValue().equals(this.value);
+        }
+    }
+
     public enum AccountNumberPrefixType {
 
         OFFICE_NAME(1, "accountNumberPrefixType.officeName"), CLIENT_TYPE(101,

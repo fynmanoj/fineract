@@ -156,4 +156,5 @@
     <include file="parts/0135_add_encryption_keys.xml" relativeToChangelogFile="true"/>
     <include file="parts/0136_add_template_system_user.xml" relativeToChangelogFile="true"/>
     <include file="parts/0137_system_user_authentication.xml" relativeToChangelogFile="true"/>
+    <include file="parts/0138_add_account_number_strategy.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>
