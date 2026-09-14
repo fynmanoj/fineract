@@ -44,8 +44,8 @@ public class HookCommandFromApiJsonDeserializer {
     /**
      * The parameters supported for this command.
      */
-    private final Set<String> supportedParameters = new HashSet<>(
-            Arrays.asList("name", "displayName", "isActive", "events", "config", "templateId"));
+    private final Set<String> supportedParameters = new HashSet<>(Arrays.asList("name", "displayName", "isActive", "events", "config",
+            "templateId", HookApiConstants.systemUserIdParamName));
     private final FromJsonHelper fromApiJsonHelper;
 
     public void validateForCreate(final String json) {
@@ -67,6 +67,12 @@ public class HookCommandFromApiJsonDeserializer {
         if (this.fromApiJsonHelper.parameterExists(HookApiConstants.templateIdParamName, element)) {
             final Long templateId = this.fromApiJsonHelper.extractLongNamed(HookApiConstants.templateIdParamName, element);
             baseDataValidator.reset().parameter(HookApiConstants.templateIdParamName).value(templateId).notNull().integerGreaterThanZero();
+        }
+
+        if (this.fromApiJsonHelper.parameterExists(HookApiConstants.systemUserIdParamName, element)) {
+            final Long systemUserId = this.fromApiJsonHelper.extractLongNamed(HookApiConstants.systemUserIdParamName, element);
+            baseDataValidator.reset().parameter(HookApiConstants.systemUserIdParamName).value(systemUserId).ignoreIfNull()
+                    .integerGreaterThanZero();
         }
 
         throwExceptionIfValidationWarningsExist(dataValidationErrors);
@@ -92,6 +98,12 @@ public class HookCommandFromApiJsonDeserializer {
         if (this.fromApiJsonHelper.parameterExists(HookApiConstants.templateIdParamName, element)) {
             final Long templateId = this.fromApiJsonHelper.extractLongNamed(HookApiConstants.templateIdParamName, element);
             baseDataValidator.reset().parameter(HookApiConstants.templateIdParamName).value(templateId).notNull().integerGreaterThanZero();
+        }
+
+        if (this.fromApiJsonHelper.parameterExists(HookApiConstants.systemUserIdParamName, element)) {
+            final Long systemUserId = this.fromApiJsonHelper.extractLongNamed(HookApiConstants.systemUserIdParamName, element);
+            baseDataValidator.reset().parameter(HookApiConstants.systemUserIdParamName).value(systemUserId).ignoreIfNull()
+                    .integerGreaterThanZero();
         }
 
         throwExceptionIfValidationWarningsExist(dataValidationErrors);

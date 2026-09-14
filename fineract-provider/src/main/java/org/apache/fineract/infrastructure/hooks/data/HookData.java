@@ -39,6 +39,7 @@ public final class HookData implements Serializable {
     private LocalDate updatedAt;
     private Long templateId;
     private String templateName;
+    private Long systemUserId;
 
     // associations
     private List<Event> events;
@@ -50,10 +51,10 @@ public final class HookData implements Serializable {
 
     public static HookData instance(final Long id, final String name, final String displayName, final boolean isActive,
             final LocalDate createdAt, final LocalDate updatedAt, final Long templateId, final List<Event> registeredEvents,
-            final List<Field> config, final String templateName) {
+            final List<Field> config, final String templateName, final Long systemUserId) {
         return new HookData().setId(id).setName(name).setDisplayName(displayName).setIsActive(isActive).setCreatedAt(createdAt)
-                .setUpdatedAt(updatedAt).setTemplateId(templateId).setTemplateName(templateName).setEvents(registeredEvents)
-                .setConfig(config);
+                .setUpdatedAt(updatedAt).setTemplateId(templateId).setTemplateName(templateName).setSystemUserId(systemUserId)
+                .setEvents(registeredEvents).setConfig(config);
     }
 
     public static HookData template(final List<HookTemplateData> templates, final List<Grouping> groupings) {
@@ -64,7 +65,7 @@ public final class HookData implements Serializable {
             final List<Grouping> groupings) {
         return new HookData().setId(hookData.id).setName(hookData.name).setDisplayName(hookData.displayName).setIsActive(hookData.isActive)
                 .setCreatedAt(hookData.createdAt).setUpdatedAt(hookData.updatedAt).setTemplateId(hookData.templateId)
-                .setTemplateName(hookData.templateName).setEvents(hookData.events).setConfig(hookData.config).setTemplates(templates)
-                .setGroupings(groupings);
+                .setTemplateName(hookData.templateName).setSystemUserId(hookData.systemUserId).setEvents(hookData.events)
+                .setConfig(hookData.config).setTemplates(templates).setGroupings(groupings);
     }
 }

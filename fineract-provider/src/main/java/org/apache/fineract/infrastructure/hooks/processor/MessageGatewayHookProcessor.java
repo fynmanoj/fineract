@@ -107,7 +107,7 @@ public class MessageGatewayHookProcessor implements HookProcessor {
 
             log.info("MessageGatewayHookProcessor -- process -- create smsText");
             // 3: compile template using Mustache
-            String smsText = this.templateMergeService.compile(template, reqMap);
+            String smsText = this.templateMergeService.compile(template, reqMap, hook);
             // 4 : send message to the url
 
             log.info("MessageGatewayHookProcessor -- process -- create smsText done {}", smsText);

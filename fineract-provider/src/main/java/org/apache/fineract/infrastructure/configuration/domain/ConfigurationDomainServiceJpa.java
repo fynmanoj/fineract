@@ -529,4 +529,30 @@ public class ConfigurationDomainServiceJpa implements ConfigurationDomainService
         return -1;
     }
 
+    @Override
+    public Integer retrieveDefaultSystemUserSessionExpirySeconds() {
+        try {
+            final GlobalConfigurationPropertyData property = getGlobalConfigurationPropertyData("default-system-user-session-expiry-seconds");
+            if (property != null && property.getValue() != null && property.getValue() > 0) {
+                return property.getValue().intValue();
+            }
+        } catch (GlobalConfigurationPropertyNotFoundException e) {
+            // fall through
+        }
+        return 86400;
+    }
+
+    @Override
+    public String retrieveDefaultHookSystemUserUsername() {
+        try {
+            final GlobalConfigurationPropertyData property = getGlobalConfigurationPropertyData("default-hook-system-user-username");
+            if (property != null && StringUtils.isNotBlank(property.getStringValue())) {
+                return property.getStringValue();
+            }
+        } catch (GlobalConfigurationPropertyNotFoundException e) {
+            // fall through
+        }
+        return "template_system";
+    }
+
 }

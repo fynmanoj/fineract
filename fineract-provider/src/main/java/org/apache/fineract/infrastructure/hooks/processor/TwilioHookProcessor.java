@@ -33,6 +33,7 @@ import org.apache.fineract.infrastructure.hooks.domain.Hook;
 import org.apache.fineract.infrastructure.hooks.domain.HookConfiguration;
 import org.apache.fineract.infrastructure.hooks.domain.HookConfigurationRepository;
 import org.apache.fineract.infrastructure.hooks.processor.data.SmsProviderData;
+import org.apache.fineract.infrastructure.security.service.SystemUserTokenService;
 import org.apache.fineract.portfolio.client.domain.Client;
 import org.apache.fineract.portfolio.client.domain.ClientRepositoryWrapper;
 import org.apache.fineract.template.service.TemplateMergeService;
@@ -47,6 +48,7 @@ public class TwilioHookProcessor implements HookProcessor {
     private final TemplateMergeService templateMergeService;
     private final ClientRepositoryWrapper clientRepositoryWrapper;
     private final ProcessorHelper processorHelper;
+    private final SystemUserTokenService systemUserTokenService;
 
     @Override
     public void process(final Hook hook, final String payload, final String entityName, final String actionName,
@@ -71,7 +73,7 @@ public class TwilioHookProcessor implements HookProcessor {
             smsProviderData.setUrl(null);
             smsProviderData.setEndpoint(System.getProperty("baseUrl"));
             smsProviderData.setTenantId(context.getTenantContext().getTenantIdentifier());
-            smsProviderData.setMifosToken(context.getAuthTokenContext());
+            smsProviderData.setMifosToken(systemUserTokenService.getHookSystemToken(hook));
             apiKey = service.sendSmsBridgeConfigRequest(smsProviderData).execute().body();
             final HookConfiguration apiKeyEntry = HookConfiguration.createNew(hook, "string", apiKeyName, apiKey);
             this.hookConfigurationRepository.save(apiKeyEntry);
@@ -104,7 +106,7 @@ public class TwilioHookProcessor implements HookProcessor {
             final Client client = this.clientRepositoryWrapper.findOneWithNotFoundDetection(clientId);
             final String mobileNo = client.mobileNo();
             if (mobileNo != null && !mobileNo.isEmpty()) {
-                final String compiledMessage = this.templateMergeService.compile(hook.getUgdTemplate(), map).replace("<p>", "")
+                final String compiledMessage = this.templateMergeService.compile(hook.getUgdTemplate(), map, hook).replace("<p>", "")
                         .replace("</p>", "");
                 final Map<String, String> jsonMap = new HashMap<>();
                 jsonMap.put("mobileNo", mobileNo);

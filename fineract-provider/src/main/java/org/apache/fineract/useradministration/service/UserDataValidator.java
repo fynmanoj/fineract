@@ -63,7 +63,9 @@ public final class UserDataValidator {
      */
     private static final Set<String> SUPPORTED_PARAMETERS = new HashSet<>(
             Arrays.asList(USERNAME, FIRSTNAME, LASTNAME, PASSWORD, REPEAT_PASSWORD, EMAIL, OFFICE_ID, NOT_SELECTED_ROLES, ROLES,
-                    SEND_PASSWORD_TO_EMAIL, STAFF_ID, PASSWORD_NEVER_EXPIRES, AppUserConstants.IS_SELF_SERVICE_USER, CLIENTS));
+                    SEND_PASSWORD_TO_EMAIL, STAFF_ID, PASSWORD_NEVER_EXPIRES, AppUserConstants.IS_SELF_SERVICE_USER, CLIENTS,
+                    AppUserConstants.IS_SYSTEM_USER, AppUserConstants.SESSION_EXPIRY_SECONDS, AppUserConstants.ALLOW_MULTIPLE_SESSIONS,
+                    AppUserConstants.PREVENT_INTERACTIVE_LOGIN));
     public static final String PASSWORD_NEVER_EXPIRE = "passwordNeverExpire";
 
     private final FromJsonHelper fromApiJsonHelper;
@@ -160,6 +162,8 @@ public final class UserDataValidator {
 
         final String[] roles = this.fromApiJsonHelper.extractArrayNamed(ROLES, element);
         baseDataValidator.reset().parameter(ROLES).value(roles).arrayNotEmpty();
+
+        validateSystemUserFields(element, baseDataValidator, isSelfServiceUser);
 
         throwExceptionIfValidationWarningsExist(dataValidationErrors);
     }
@@ -288,7 +292,34 @@ public final class UserDataValidator {
             }
         }
 
+        validateSystemUserFields(element, baseDataValidator, isSelfServiceUser);
+
         throwExceptionIfValidationWarningsExist(dataValidationErrors);
         validateFieldLevelACL(json, authenticatedUser);
+    }
+
+    private void validateSystemUserFields(final JsonElement element, final DataValidatorBuilder baseDataValidator,
+            final Boolean isSelfServiceUser) {
+        if (!this.fromApiJsonHelper.parameterExists(AppUserConstants.IS_SYSTEM_USER, element)) {
+            return;
+        }
+        final Boolean isSystemUser = this.fromApiJsonHelper.extractBooleanNamed(AppUserConstants.IS_SYSTEM_USER, element);
+        if (isSystemUser == null || !isSystemUser) {
+            return;
+        }
+        if (Boolean.TRUE.equals(isSelfServiceUser)) {
+            baseDataValidator.reset().parameter(AppUserConstants.IS_SYSTEM_USER).failWithCode(
+                    "not.supported.when.isSelfServiceUser.is.true", "System users cannot be self-service users");
+        }
+        final Boolean passwordNeverExpires = this.fromApiJsonHelper.extractBooleanNamed(AppUserConstants.PASSWORD_NEVER_EXPIRES, element);
+        if (passwordNeverExpires == null || !passwordNeverExpires) {
+            baseDataValidator.reset().parameter(AppUserConstants.PASSWORD_NEVER_EXPIRES).failWithCode("must.be.true.for.system.user",
+                    "System users must have passwordNeverExpires set to true");
+        }
+        if (this.fromApiJsonHelper.parameterExists(AppUserConstants.SESSION_EXPIRY_SECONDS, element)) {
+            final Long sessionExpirySeconds = this.fromApiJsonHelper.extractLongNamed(AppUserConstants.SESSION_EXPIRY_SECONDS, element);
+            baseDataValidator.reset().parameter(AppUserConstants.SESSION_EXPIRY_SECONDS).value(sessionExpirySeconds).ignoreIfNull()
+                    .integerGreaterThanZero();
+        }
     }
 }

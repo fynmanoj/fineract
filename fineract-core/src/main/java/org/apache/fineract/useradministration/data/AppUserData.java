@@ -56,6 +56,11 @@ public final class AppUserData {
     @SuppressWarnings("unused")
     private Set<ClientData> clients;
 
+    private Boolean isSystemUser;
+    private Integer sessionExpirySeconds;
+    private Boolean allowMultipleSessions;
+    private Boolean preventInteractiveLogin;
+
     public static AppUserData importInstance(Long officeId, Long staffId, String username, String firstname, String lastname, String email,
             Boolean sendPasswordToEmail, Boolean passwordNeverExpires, List<Long> roleIds, Integer rowIndex) {
         return new AppUserData(officeId, staffId, username, firstname, lastname, email, sendPasswordToEmail, passwordNeverExpires, roleIds,
@@ -170,6 +175,38 @@ public final class AppUserData {
 
     public boolean isSelfServiceUser() {
         return this.isSelfServiceUser == null ? false : this.isSelfServiceUser;
+    }
+
+    public Boolean getIsSystemUser() {
+        return isSystemUser;
+    }
+
+    public void setIsSystemUser(Boolean isSystemUser) {
+        this.isSystemUser = isSystemUser;
+    }
+
+    public Integer getSessionExpirySeconds() {
+        return sessionExpirySeconds;
+    }
+
+    public void setSessionExpirySeconds(Integer sessionExpirySeconds) {
+        this.sessionExpirySeconds = sessionExpirySeconds;
+    }
+
+    public Boolean getAllowMultipleSessions() {
+        return allowMultipleSessions;
+    }
+
+    public void setAllowMultipleSessions(Boolean allowMultipleSessions) {
+        this.allowMultipleSessions = allowMultipleSessions;
+    }
+
+    public Boolean getPreventInteractiveLogin() {
+        return preventInteractiveLogin;
+    }
+
+    public void setPreventInteractiveLogin(Boolean preventInteractiveLogin) {
+        this.preventInteractiveLogin = preventInteractiveLogin;
     }
 
 }

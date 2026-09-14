@@ -19,6 +19,7 @@
 package org.apache.fineract.template.starter;
 
 import org.apache.fineract.infrastructure.core.config.FineractProperties;
+import org.apache.fineract.infrastructure.security.service.SystemUserTokenService;
 import org.apache.fineract.template.domain.TemplateRepository;
 import org.apache.fineract.template.service.JpaTemplateDomainService;
 import org.apache.fineract.template.service.TemplateDomainService;
@@ -38,8 +39,9 @@ public class TemplateConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(TemplateMergeService.class)
-    public TemplateMergeService templateMergeService(FineractProperties fineractProperties) {
-        return new TemplateMergeService(fineractProperties);
+    public TemplateMergeService templateMergeService(FineractProperties fineractProperties,
+            SystemUserTokenService systemUserTokenService) {
+        return new TemplateMergeService(fineractProperties, systemUserTokenService);
     }
 
 }

@@ -113,7 +113,7 @@ public class HookReadPlatformServiceImpl implements HookReadPlatformService {
 
         public String schema() {
             return " h.id, s.name as name, h.name as display_name, h.is_active, h.created_date,"
-                    + " h.lastmodified_date, h.ugd_template_id, tp.name as ugd_template_name, "
+                    + " h.lastmodified_date, h.ugd_template_id, tp.name as ugd_template_name, h.system_user_id, "
                     + "h.ugd_template_id from m_hook h left join m_hook_templates s on h.template_id = s.id"
                     + " left join m_template tp on h.ugd_template_id = tp.id";
         }
@@ -129,11 +129,12 @@ public class HookReadPlatformServiceImpl implements HookReadPlatformService {
             final LocalDate updatedAt = JdbcSupport.getLocalDate(rs, "lastmodified_date");
             final Long templateId = rs.getLong("ugd_template_id");
             final String templateName = rs.getString("ugd_template_name");
+            final Long systemUserId = JdbcSupport.getLong(rs, "system_user_id");
             final List<Event> registeredEvents = retrieveEvents(id);
             final List<Field> config = retrieveConfig(id);
 
             return HookData.instance(id, name, displayname, isActive, createdAt, updatedAt, templateId, registeredEvents, config,
-                    templateName);
+                    templateName, systemUserId);
         }
 
         private List<Event> retrieveEvents(final Long hookId) {

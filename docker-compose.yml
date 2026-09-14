@@ -39,7 +39,10 @@ services:
       - ./config/docker/env/fineract-common.env
       - ./config/docker/env/fineract-mariadb.env
   community-app:
-    image: openmf/community-app:latest
+    build:
+      context: ../community-app
+      dockerfile: Dockerfile
+    image: fynarfin/community-app:tokenauth
     container_name: mifos-ui
     restart: always
     ports:

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+    <changeSet id="0137-1" author="fynarfin">
+        <addColumn tableName="m_appuser">
+            <column name="is_system_user" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="session_expiry_seconds" type="INT"/>
+            <column name="allow_multiple_sessions" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="prevent_interactive_login" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0137-2" author="fynarfin">
+        <addColumn tableName="m_user_sessions">
+            <column name="expires_at" type="DATETIME"/>
+            <column name="session_policy" type="VARCHAR(20)" defaultValue="SLIDING_IDLE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="session_label" type="VARCHAR(100)"/>
+        </addColumn>
+        <createIndex indexName="idx_user_session_user_id_valid" tableName="m_user_sessions">
+            <column name="user_id"/>
+            <column name="is_valid"/>
+        </createIndex>
+        <createIndex indexName="idx_user_session_expires_at" tableName="m_user_sessions">
+            <column name="expires_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0137-3" author="fynarfin">
+        <addColumn tableName="m_hook">
+            <column name="system_user_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="m_hook"
+                                 baseColumnNames="system_user_id"
+                                 constraintName="fk_m_hook_system_user"
+                                 referencedTableName="m_appuser"
+                                 referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="0137-4" author="fynarfin">
+        <insert tableName="c_configuration">
+            <column name="name" value="default-system-user-session-expiry-seconds"/>
+            <column name="value" valueNumeric="86400"/>
+            <column name="date_value"/>
+            <column name="string_value"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="is_trap_door" valueBoolean="false"/>
+            <column name="description" value="Default hard-expiry session TTL in seconds for system users"/>
+        </insert>
+        <insert tableName="c_configuration">
+            <column name="name" value="default-hook-system-user-username"/>
+            <column name="value"/>
+            <column name="date_value"/>
+            <column name="string_value" value="template_system"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="is_trap_door" valueBoolean="false"/>
+            <column name="description" value="Default system user username for hook and internal API calls"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="0137-5" author="fynarfin">
+        <update tableName="m_appuser">
+            <column name="is_system_user" valueBoolean="true"/>
+            <column name="session_expiry_seconds" valueNumeric="86400"/>
+            <column name="allow_multiple_sessions" valueBoolean="false"/>
+            <column name="prevent_interactive_login" valueBoolean="true"/>
+            <where>username = 'template_system'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="0137-6" author="fynarfin">
+        <insert tableName="job">
+            <column name="name" value="Purge Expired User Sessions"/>
+            <column name="display_name" value="Purge Expired User Sessions"/>
+            <column name="cron_expression" value="0 0 2 * * ?"/>
+            <column name="create_time" valueDate="${current_datetime}"/>
+            <column name="task_priority" valueNumeric="5"/>
+            <column name="group_name"/>
+            <column name="previous_run_start_time"/>
+            <column name="job_key" value="Purge Expired User Sessions _ DEFAULT"/>
+            <column name="initializing_errorlog"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="currently_running" valueBoolean="false"/>
+            <column name="updates_allowed" valueBoolean="true"/>
+            <column name="scheduler_group" valueNumeric="0"/>
+            <column name="is_misfired" valueBoolean="false"/>
+            <column name="node_id" valueNumeric="1"/>
+            <column name="is_mismatched_job" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

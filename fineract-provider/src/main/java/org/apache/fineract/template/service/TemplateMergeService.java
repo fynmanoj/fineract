@@ -38,21 +38,22 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.Base64;
 import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.core.config.FineractProperties;
+import org.apache.fineract.infrastructure.hooks.domain.Hook;
+import org.apache.fineract.infrastructure.security.service.SystemUserTokenService;
 import org.apache.fineract.template.domain.Template;
 import org.apache.fineract.template.domain.TemplateFunctions;
 import org.apache.fineract.template.exception.TemplateForbiddenException;
-import org.apache.fineract.infrastructure.core.config.FineractProperties.FineractTemplateProperties.InternalUser;
 
 @Slf4j
 @RequiredArgsConstructor
 public class TemplateMergeService {
 
     private final FineractProperties fineractProperties;
+    private final SystemUserTokenService systemUserTokenService;
 
     // TODO Replace this with appropriate alternative available in Guava
     private static String getStringFromInputStream(final InputStream is) {
@@ -72,12 +73,16 @@ public class TemplateMergeService {
     }
 
     public String compile(final Template template, final Map<String, Object> scopes) {
+        return compile(template, scopes, null);
+    }
+
+    public String compile(final Template template, final Map<String, Object> scopes, final Hook hook) {
         scopes.put("static", new TemplateFunctions());
 
         final MustacheFactory mf = new DefaultMustacheFactory();
         final Mustache mustache = mf.compile(new StringReader(template.getText()), template.getName());
 
-        getCompiledMapFromMappers(template.getMappersAsMap(), scopes);
+        getCompiledMapFromMappers(template.getMappersAsMap(), scopes, hook);
 
         expandMapArrays(scopes);
 
@@ -87,7 +92,8 @@ public class TemplateMergeService {
         return stringWriter.toString();
     }
 
-    private Map<String, Object> getCompiledMapFromMappers(final Map<String, String> data, final Map<String, Object> scopes) {
+    private Map<String, Object> getCompiledMapFromMappers(final Map<String, String> data, final Map<String, Object> scopes,
+            final Hook hook) {
         final MustacheFactory mf = new DefaultMustacheFactory();
 
         if (data != null) {
@@ -110,7 +116,7 @@ public class TemplateMergeService {
                     }
                 }
                 try {
-                    scopes.put(entry.getKey(), getMapFromUrl(url));
+                    scopes.put(entry.getKey(), getMapFromUrl(url, hook));
                 } catch (final IOException e) {
                     log.error("getCompiledMapFromMappers() failed", e);
                 }
@@ -120,9 +126,9 @@ public class TemplateMergeService {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> getMapFromUrl(final String url) throws IOException {
+    private Map<String, Object> getMapFromUrl(final String url, final Hook hook) throws IOException {
 
-        final HttpURLConnection connection = getConnection(url);
+        final HttpURLConnection connection = getConnection(url, hook);
 
         try {
 
@@ -151,7 +157,7 @@ public class TemplateMergeService {
         }
     }
 
-    private HttpURLConnection getConnection(final String url) {
+    private HttpURLConnection getConnection(final String url, final Hook hook) {
         if (fineractProperties.getTemplate() != null && fineractProperties.getTemplate().isRegexWhitelistEnabled()) {
             boolean whitelisted = false;
 
@@ -172,19 +178,10 @@ public class TemplateMergeService {
             }
         }
 
-        final InternalUser internalUser =
-                fineractProperties.getTemplate().getInternalUser();
-
-        final String name = internalUser.getUsername();
-        final String password = internalUser.getPassword();
-
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
-            final String credentials = name + ":" + password;
-
-            final String basicAuth = Base64.getEncoder()
-                    .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+            final String systemToken = systemUserTokenService.getHookSystemToken(hook);
 
             if (ThreadLocalContextUtil.getTenant() == null) {
                 throw new IllegalStateException("Tenant context is missing");
@@ -192,9 +189,7 @@ public class TemplateMergeService {
 
             String tenantId = ThreadLocalContextUtil.getTenant().getTenantIdentifier();
 
-            connection.setRequestProperty(
-                    "Authorization",
-                    "Basic " + basicAuth);
+            connection.setRequestProperty("Authorization", "Token " + systemToken);
 
             connection.setRequestProperty(
                     "Fineract-Platform-TenantId",

@@ -22,6 +22,7 @@ import static org.apache.fineract.infrastructure.hooks.api.HookApiConstants.conf
 import static org.apache.fineract.infrastructure.hooks.api.HookApiConstants.displayNameParamName;
 import static org.apache.fineract.infrastructure.hooks.api.HookApiConstants.eventsParamName;
 import static org.apache.fineract.infrastructure.hooks.api.HookApiConstants.isActiveParamName;
+import static org.apache.fineract.infrastructure.hooks.api.HookApiConstants.systemUserIdParamName;
 import static org.apache.fineract.infrastructure.hooks.api.HookApiConstants.templateIdParamName;
 
 import com.google.gson.JsonArray;
@@ -76,6 +77,9 @@ public final class Hook extends AbstractAuditableCustom {
     @JoinColumn(name = "ugd_template_id", referencedColumnName = "id", nullable = true)
     private Template ugdTemplate;
 
+    @Column(name = "system_user_id")
+    private Long systemUserId;
+
     public static Hook fromJson(final JsonCommand command, final HookTemplate template, final Set<HookConfiguration> config,
             final Set<HookResource> events, final Template ugdTemplate) {
         final String displayName = command.stringValueOfParameterNamed(displayNameParamName);
@@ -83,11 +87,15 @@ public final class Hook extends AbstractAuditableCustom {
         if (isActive == null) {
             isActive = false;
         }
-        return new Hook(template, displayName, isActive, config, events, ugdTemplate);
+        Long systemUserId = null;
+        if (command.hasParameter(systemUserIdParamName)) {
+            systemUserId = command.longValueOfParameterNamed(systemUserIdParamName);
+        }
+        return new Hook(template, displayName, isActive, config, events, ugdTemplate, systemUserId);
     }
 
     private Hook(final HookTemplate template, final String displayName, final Boolean isActive, final Set<HookConfiguration> config,
-            final Set<HookResource> events, final Template ugdTemplate) {
+            final Set<HookResource> events, final Template ugdTemplate, final Long systemUserId) {
 
         this.template = template;
 
@@ -105,6 +113,7 @@ public final class Hook extends AbstractAuditableCustom {
         }
 
         this.ugdTemplate = ugdTemplate;
+        this.systemUserId = systemUserId;
     }
 
     private Set<HookConfiguration> associateConfigWithThisHook(final Set<HookConfiguration> config) {
@@ -148,6 +157,14 @@ public final class Hook extends AbstractAuditableCustom {
         if (command.isChangeInLongParameterNamed(templateIdParamName, getUgdTemplateId())) {
             final Long newValue = command.longValueOfParameterNamed(templateIdParamName);
             actualChanges.put(templateIdParamName, newValue);
+        }
+
+        if (command.hasParameter(systemUserIdParamName)) {
+            final Long newValue = command.longValueOfParameterNamed(systemUserIdParamName);
+            if (newValue == null || !newValue.equals(this.systemUserId)) {
+                actualChanges.put(systemUserIdParamName, newValue);
+                this.systemUserId = newValue;
+            }
         }
 
         // events

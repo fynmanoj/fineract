@@ -31,3 +31,8 @@ fineract-client/out/
 fineract-provider/src/main/generated/
 integration-tests/out/
 module/dummy/starter/out/
+
+# Cursor IDE (local AI context, not shared via repo)
+.cursor/
+AGENTS.md
+CODE_MAP.md

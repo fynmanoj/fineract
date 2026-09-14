@@ -68,12 +68,14 @@ public final class HookApiConstants {
 
     public static final String templateNameParamName = "templateName";
 
+    public static final String systemUserIdParamName = "systemUserId";
+
     public static final String SMSProviderIdParamName = "SMS Provider Id";
 
     public static final Set<String> RESPONSE_DATA_PARAMETERS = new HashSet<>(Arrays.asList(nameParamName, displayNameParamName,
-            templateIdParamName, isActiveParamName, configParamName, eventsParamName, templateNameParamName));
+            templateIdParamName, isActiveParamName, configParamName, eventsParamName, templateNameParamName, systemUserIdParamName));
 
     public static final Set<String> UPDATE_REQUEST_DATA_PARAMETERS = new HashSet<>(Arrays.asList(nameParamName, displayNameParamName,
-            templateIdParamName, isActiveParamName, configParamName, eventsParamName, templateNameParamName));
+            templateIdParamName, isActiveParamName, configParamName, eventsParamName, templateNameParamName, systemUserIdParamName));
 
 }

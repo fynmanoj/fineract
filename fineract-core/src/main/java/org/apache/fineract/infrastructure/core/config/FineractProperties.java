@@ -487,10 +487,27 @@ public class FineractProperties {
         private FineractSecurityBasicAuth basicauth;
         private FineractSecurityTwoFactorAuth twoFactor;
         private FineractSecurityOAuth oauth;
+        private FineractSecuritySession session;
+        private FineractSecuritySystemUser systemUser;
 
         public void set2fa(FineractSecurityTwoFactorAuth twoFactor) {
             this.twoFactor = twoFactor;
         }
+    }
+
+    @Getter
+    @Setter
+    public static class FineractSecuritySession {
+
+        private int idleTimeoutMinutes = 10;
+    }
+
+    @Getter
+    @Setter
+    public static class FineractSecuritySystemUser {
+
+        private int defaultSessionExpirySeconds = 86400;
+        private String defaultHookUsername = "template_system";
     }
 
     @Getter

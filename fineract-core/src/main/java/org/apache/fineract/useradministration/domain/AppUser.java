@@ -128,6 +128,18 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     @Column(name = "cannot_change_password", nullable = true)
     private Boolean cannotChangePassword;
 
+    @Column(name = "is_system_user", nullable = false)
+    private boolean isSystemUser;
+
+    @Column(name = "session_expiry_seconds")
+    private Integer sessionExpirySeconds;
+
+    @Column(name = "allow_multiple_sessions", nullable = false)
+    private boolean allowMultipleSessions;
+
+    @Column(name = "prevent_interactive_login", nullable = false)
+    private boolean preventInteractiveLogin;
+
     public static AppUser fromJson(final Office userOffice, final Staff linkedStaff, final Set<Role> allRoles,
             final Collection<Client> clients, String password, final JsonCommand command) {
 
@@ -163,8 +175,25 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
 
         final boolean isSelfServiceUser = command.booleanPrimitiveValueOfParameterNamed(AppUserConstants.IS_SELF_SERVICE_USER);
 
+        boolean isSystemUser = false;
+        if (command.parameterExists(AppUserConstants.IS_SYSTEM_USER)) {
+            isSystemUser = command.booleanPrimitiveValueOfParameterNamed(AppUserConstants.IS_SYSTEM_USER);
+        }
+        Integer sessionExpirySeconds = null;
+        if (command.parameterExists(AppUserConstants.SESSION_EXPIRY_SECONDS)) {
+            sessionExpirySeconds = command.integerValueOfParameterNamed(AppUserConstants.SESSION_EXPIRY_SECONDS);
+        }
+        boolean allowMultipleSessions = false;
+        if (command.parameterExists(AppUserConstants.ALLOW_MULTIPLE_SESSIONS)) {
+            allowMultipleSessions = command.booleanPrimitiveValueOfParameterNamed(AppUserConstants.ALLOW_MULTIPLE_SESSIONS);
+        }
+        boolean preventInteractiveLogin = false;
+        if (command.parameterExists(AppUserConstants.PREVENT_INTERACTIVE_LOGIN)) {
+            preventInteractiveLogin = command.booleanPrimitiveValueOfParameterNamed(AppUserConstants.PREVENT_INTERACTIVE_LOGIN);
+        }
+
         return new AppUser(userOffice, user, allRoles, email, firstname, lastname, linkedStaff, passwordNeverExpire, isSelfServiceUser,
-                clients, cannotChangePassword);
+                clients, cannotChangePassword, isSystemUser, sessionExpirySeconds, allowMultipleSessions, preventInteractiveLogin);
     }
 
     protected AppUser() {
@@ -176,6 +205,14 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     public AppUser(final Office office, final User user, final Set<Role> roles, final String email, final String firstname,
             final String lastname, final Staff staff, final boolean passwordNeverExpire, final boolean isSelfServiceUser,
             final Collection<Client> clients, final Boolean cannotChangePassword) {
+        this(office, user, roles, email, firstname, lastname, staff, passwordNeverExpire, isSelfServiceUser, clients, cannotChangePassword,
+                false, null, false, false);
+    }
+
+    public AppUser(final Office office, final User user, final Set<Role> roles, final String email, final String firstname,
+            final String lastname, final Staff staff, final boolean passwordNeverExpire, final boolean isSelfServiceUser,
+            final Collection<Client> clients, final Boolean cannotChangePassword, final boolean isSystemUser,
+            final Integer sessionExpirySeconds, final boolean allowMultipleSessions, final boolean preventInteractiveLogin) {
         this.office = office;
         this.email = email.trim();
         this.username = user.getUsername().trim();
@@ -194,6 +231,10 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
         this.isSelfServiceUser = isSelfServiceUser;
         this.appUserClientMappings = createAppUserClientMappings(clients);
         this.cannotChangePassword = cannotChangePassword;
+        this.isSystemUser = isSystemUser;
+        this.sessionExpirySeconds = sessionExpirySeconds;
+        this.allowMultipleSessions = allowMultipleSessions;
+        this.preventInteractiveLogin = preventInteractiveLogin;
     }
 
     public EnumOptionData organisationalRoleData() {
@@ -342,6 +383,38 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
             }
         }
 
+        if (command.hasParameter(AppUserConstants.IS_SYSTEM_USER)) {
+            if (command.isChangeInBooleanParameterNamed(AppUserConstants.IS_SYSTEM_USER, this.isSystemUser)) {
+                final boolean newValue = command.booleanPrimitiveValueOfParameterNamed(AppUserConstants.IS_SYSTEM_USER);
+                actualChanges.put(AppUserConstants.IS_SYSTEM_USER, newValue);
+                this.isSystemUser = newValue;
+            }
+        }
+
+        if (command.hasParameter(AppUserConstants.SESSION_EXPIRY_SECONDS)) {
+            if (command.isChangeInIntegerParameterNamed(AppUserConstants.SESSION_EXPIRY_SECONDS, this.sessionExpirySeconds)) {
+                final Integer newValue = command.integerValueOfParameterNamed(AppUserConstants.SESSION_EXPIRY_SECONDS);
+                actualChanges.put(AppUserConstants.SESSION_EXPIRY_SECONDS, newValue);
+                this.sessionExpirySeconds = newValue;
+            }
+        }
+
+        if (command.hasParameter(AppUserConstants.ALLOW_MULTIPLE_SESSIONS)) {
+            if (command.isChangeInBooleanParameterNamed(AppUserConstants.ALLOW_MULTIPLE_SESSIONS, this.allowMultipleSessions)) {
+                final boolean newValue = command.booleanPrimitiveValueOfParameterNamed(AppUserConstants.ALLOW_MULTIPLE_SESSIONS);
+                actualChanges.put(AppUserConstants.ALLOW_MULTIPLE_SESSIONS, newValue);
+                this.allowMultipleSessions = newValue;
+            }
+        }
+
+        if (command.hasParameter(AppUserConstants.PREVENT_INTERACTIVE_LOGIN)) {
+            if (command.isChangeInBooleanParameterNamed(AppUserConstants.PREVENT_INTERACTIVE_LOGIN, this.preventInteractiveLogin)) {
+                final boolean newValue = command.booleanPrimitiveValueOfParameterNamed(AppUserConstants.PREVENT_INTERACTIVE_LOGIN);
+                actualChanges.put(AppUserConstants.PREVENT_INTERACTIVE_LOGIN, newValue);
+                this.preventInteractiveLogin = newValue;
+            }
+        }
+
         return actualChanges;
     }
 
@@ -378,12 +451,7 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
     }
 
     public boolean isSystemUser() {
-        // TODO Determine system user by ID not by user name
-        if (this.username.equals(AppUserConstants.SYSTEM_USER_NAME)) {
-            return true;
-        }
-
-        return false;
+        return this.isSystemUser || AppUserConstants.SYSTEM_USER_NAME.equals(this.username);
     }
 
     @Override
@@ -763,6 +831,18 @@ public class AppUser extends AbstractPersistableCustom implements PlatformUser {
 
     public boolean isSelfServiceUser() {
         return this.isSelfServiceUser;
+    }
+
+    public Integer getSessionExpirySeconds() {
+        return this.sessionExpirySeconds;
+    }
+
+    public boolean isAllowMultipleSessions() {
+        return this.allowMultipleSessions;
+    }
+
+    public boolean isPreventInteractiveLogin() {
+        return this.preventInteractiveLogin;
     }
 
     public Set<AppUserClientMapping> getAppUserClientMappings() {

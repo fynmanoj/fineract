@@ -34,12 +34,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 
 import lombok.RequiredArgsConstructor;
-import okhttp3.Credentials;
 import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
@@ -101,7 +99,8 @@ public class AuthenticationApiResource {
             @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = AuthenticationApiResourceSwagger.PostAuthenticationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Unauthenticated. Please login") })
     public String authenticate(@Parameter(hidden = true) final String apiRequestBodyAsJson,
-                               @QueryParam("returnClientList") @DefaultValue("false") boolean returnClientList) {
+            @QueryParam("returnClientList") @DefaultValue("false") boolean returnClientList,
+            @QueryParam("sessionLabel") final String sessionLabel) {
         // TODO FINERACT-819: sort out Jersey so JSON conversion does not have
         // to be done explicitly via GSON here, but implicit by arg
         AuthenticateRequest request = new Gson().fromJson(apiRequestBodyAsJson, AuthenticateRequest.class);
@@ -123,6 +122,11 @@ public class AuthenticationApiResource {
         // 1. Password expiry check
         if (!appUser.isCredentialsNonExpired()) {
             throw new IllegalArgumentException("Your password has expired. Please reset it.");
+        }
+
+        if (appUser.isPreventInteractiveLogin()) {
+            throw validationError("error.msg.interactive.login.not.allowed",
+                    "Interactive login is not allowed for this user account.");
         }
 
         // 2. Temporary lockout check
@@ -195,8 +199,7 @@ public class AuthenticationApiResource {
                 permissions.add(grantedAuthority.getAuthority());
             }
 
-            final byte[] base64EncodedAuthenticationKey = Base64.getEncoder()
-                    .encode((request.username + ":" + request.password).getBytes(StandardCharsets.UTF_8));
+            final String sessionToken = sessionHandlerService.createSession(principal, sessionLabel);
 
             this.springSecurityPlatformSecurityContext.saveAppUser(principal);
             final Collection<RoleData> roles = new ArrayList<>();
@@ -218,15 +221,14 @@ public class AuthenticationApiResource {
             Long userId = principal.getId();
             if (this.springSecurityPlatformSecurityContext.doesPasswordHasToBeRenewed(principal)) {
                 authenticatedUserData = new AuthenticatedUserData().setUsername(request.username).setUserId(userId)
-                        .setBase64EncodedAuthenticationKey(sessionHandlerService.getCustomAuthenticationKey(base64EncodedAuthenticationKey, userId, request.username))
-                        .setAuthenticated(true).setShouldRenewPassword(true).setTwoFactorAuthenticationRequired(isTwoFactorRequired);
+                        .setBase64EncodedAuthenticationKey(sessionToken).setAuthenticated(true).setShouldRenewPassword(true)
+                        .setTwoFactorAuthenticationRequired(isTwoFactorRequired);
             } else {
 
                 authenticatedUserData = new AuthenticatedUserData().setUsername(request.username).setOfficeId(officeId)
                         .setOfficeName(officeName).setStaffId(staffId).setStaffDisplayName(staffDisplayName)
                         .setOrganisationalRole(organisationalRole).setRoles(roles).setPermissions(permissions).setUserId(principal.getId())
-                        .setAuthenticated(true)
-                        .setBase64EncodedAuthenticationKey(sessionHandlerService.getCustomAuthenticationKey(base64EncodedAuthenticationKey, userId, request.username))
+                        .setAuthenticated(true).setBase64EncodedAuthenticationKey(sessionToken)
                         .setTwoFactorAuthenticationRequired(isTwoFactorRequired)
                         .setClients(returnClientList ? clientReadPlatformService.retrieveUserClients(userId) : null);
 
