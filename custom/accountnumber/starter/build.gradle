@@ -16,15 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.fineract.portfolio.client.exception;
+description = 'Fineract: Account Number Sequence Starter'
 
-import org.apache.fineract.infrastructure.core.exception.AbstractPlatformDomainRuleException;
+group = 'org.apache.fineract.infrastructure.accountnumberformat'
 
-public class AccountNumberStrategyNotConfiguredException extends AbstractPlatformDomainRuleException {
+archivesBaseName = 'fineract-accountnumber-starter'
 
-    public AccountNumberStrategyNotConfiguredException() {
-        super("error.msg.client.account.number.sequence.not.configured",
-                "Client account number SEQUENCE_TABLE strategy is enabled but no AccountNumberSequenceService implementation is available. "
-                        + "Deploy the accountnumber custom module.");
-    }
-}
+apply from: 'dependencies.gradle'

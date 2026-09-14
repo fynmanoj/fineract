@@ -61,14 +61,18 @@ include ':fineract-doc'
 include ':fineract-avro-schemas'
 // NOTE: custom Docker image with all custom modules included
 include ':custom:docker'
-// NOTE: dynamically load custom modules with pattern "custom -> company -> category -> module"
+// NOTE: dynamically load custom modules with pattern "custom -> company -> [category ->] module"
 file("${rootDir}/custom").eachDir { companyDir ->
     if('build' != companyDir.name && 'docker' != companyDir.name) {
         file("${rootDir}/custom/${companyDir.name}").eachDir { categoryDir ->
             if('build' != categoryDir.name) {
-                file("${rootDir}/custom/${companyDir.name}/${categoryDir.name}").eachDir { moduleDir ->
-                    if('build' != moduleDir.name) {
-                        include ":custom:${companyDir.name}:${categoryDir.name}:${moduleDir.name}"
+                if (file("${categoryDir}/build.gradle").exists()) {
+                    include ":custom:${companyDir.name}:${categoryDir.name}"
+                } else {
+                    file("${rootDir}/custom/${companyDir.name}/${categoryDir.name}").eachDir { moduleDir ->
+                        if('build' != moduleDir.name) {
+                            include ":custom:${companyDir.name}:${categoryDir.name}:${moduleDir.name}"
+                        }
                     }
                 }
             }

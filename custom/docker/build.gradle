@@ -65,9 +65,13 @@ jib {
             if('build' != companyDir.name && 'docker' != companyDir.name) {
                 file("${rootDir}/custom/${companyDir.name}").eachDir { categoryDir ->
                     if('build' != categoryDir.name) {
-                        file("${rootDir}/custom/${companyDir.name}/${categoryDir.name}").eachDir { moduleDir ->
-                            if('build' != moduleDir.name) {
-                                implementation project(":custom:${companyDir.name}:${categoryDir.name}:${moduleDir.name}")
+                        if (file("${categoryDir}/build.gradle").exists()) {
+                            implementation project(":custom:${companyDir.name}:${categoryDir.name}")
+                        } else {
+                            file("${rootDir}/custom/${companyDir.name}/${categoryDir.name}").eachDir { moduleDir ->
+                                if('build' != moduleDir.name) {
+                                    implementation project(":custom:${companyDir.name}:${categoryDir.name}:${moduleDir.name}")
+                                }
                             }
                         }
                     }

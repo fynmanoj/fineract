@@ -16,15 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.fineract.portfolio.client.exception;
 
-import org.apache.fineract.infrastructure.core.exception.AbstractPlatformDomainRuleException;
-
-public class AccountNumberStrategyNotConfiguredException extends AbstractPlatformDomainRuleException {
-
-    public AccountNumberStrategyNotConfiguredException() {
-        super("error.msg.client.account.number.sequence.not.configured",
-                "Client account number SEQUENCE_TABLE strategy is enabled but no AccountNumberSequenceService implementation is available. "
-                        + "Deploy the accountnumber custom module.");
-    }
+dependencies {
+    implementation(project(':fineract-core'))
+    implementation(project(':fineract-provider'))
+    implementation('org.springframework:spring-tx')
+    implementation('org.springframework:spring-jdbc')
+    implementation('org.springframework.boot:spring-boot-starter')
 }
