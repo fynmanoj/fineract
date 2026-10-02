@@ -33,9 +33,25 @@ public class SessionHandlerServiceImpl implements SessionHandlerService {
     @Transactional
     @Override
     public String createSession(final AppUser user, final String sessionLabel) {
-        if (!user.isAllowMultipleSessions()) {
-            final List<UserSession> existingSessions = userSessionRepository.findAllByUserId(user.getId());
-            userSessionRepository.deleteAll(existingSessions);
+        if (user.isSystemUser()) {
+            if (!user.isAllowMultipleSessions()) {
+                platformUserRepository.findOneLocked(user.getId()).orElseThrow(() -> new UserNotFoundException(user.getId()));
+                final List<UserSession> validSessions = userSessionRepository.findValidHardExpirySessions(user.getId(),
+                        DateUtils.getLocalDateTimeOfTenant());
+                if (!validSessions.isEmpty()) {
+                    return validSessions.get(0).getSessionKey();
+                }
+                userSessionRepository.deleteAllByUserId(user.getId());
+            } else {
+                final List<UserSession> validSessions = userSessionRepository.findValidHardExpirySessions(user.getId(),
+                        DateUtils.getLocalDateTimeOfTenant());
+                if (!validSessions.isEmpty()) {
+                    return validSessions.get(0).getSessionKey();
+                }
+            }
+        } else if (!user.isAllowMultipleSessions()) {
+            platformUserRepository.findOneLocked(user.getId()).orElseThrow(() -> new UserNotFoundException(user.getId()));
+            userSessionRepository.deleteAllByUserId(user.getId());
         }
 
         final LocalDateTime now = DateUtils.getLocalDateTimeOfTenant();
@@ -101,8 +117,8 @@ public class SessionHandlerServiceImpl implements SessionHandlerService {
     @Transactional
     @Override
     public void invalidateUserSessions(final Long userId) {
-        final List<UserSession> sessions = userSessionRepository.findAllByUserId(userId);
-        userSessionRepository.deleteAll(sessions);
+        platformUserRepository.findOneLocked(userId).orElseThrow(() -> new UserNotFoundException(userId));
+        userSessionRepository.deleteAllByUserId(userId);
     }
 
     private int resolveIdleTimeoutMinutes() {

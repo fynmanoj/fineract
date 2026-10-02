@@ -18,12 +18,18 @@
  */
 package org.apache.fineract.infrastructure.accountnumberformat.sequence;
 
+import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CLAIM_SCOPE_PREFIX;
+import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CLIENT_GLOBAL_SCOPE_KEY;
+import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.GAP_SCOPE_PREFIX;
+import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.MAX_NUMERIC_ACCOUNT_NUMBER;
+
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.fineract.infrastructure.core.domain.FineractContext;
 import org.apache.fineract.portfolio.client.exception.AccountNumberOverflowException;
 import org.apache.fineract.portfolio.client.service.AccountNumberSequenceService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -31,7 +37,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -39,29 +44,36 @@ import org.springframework.transaction.support.TransactionTemplate;
 @AutoConfiguration
 public class AccountNumberSequenceAutoConfiguration {
 
-    private static final String CLIENT_GLOBAL_SCOPE_KEY = "CLIENT:GLOBAL";
-    private static final long MAX_NUMERIC_ACCOUNT_NUMBER = 999_999_999L;
+    static final String GAP_SCOPE_PREFIX = AccountNumberGapSqlSupport.GAP_SCOPE_PREFIX;
+    static final String CLAIM_SCOPE_PREFIX = AccountNumberGapSqlSupport.CLAIM_SCOPE_PREFIX;
+
+    private static final Object GAP_REFILL_SCHEDULED_KEY = new Object();
+
+    @Bean
+    AccountNumberGapPoolManager accountNumberGapPoolManager(final JdbcTemplate jdbcTemplate,
+            final PlatformTransactionManager transactionManager) {
+        return new AccountNumberGapPoolManager(jdbcTemplate, transactionManager);
+    }
 
     @Bean
     @Primary
-    public AccountNumberSequenceService hiLoAccountNumberSequenceService(final JdbcTemplate jdbcTemplate,
+    public AccountNumberSequenceService hiLoAccountNumberSequenceService(final AccountNumberGapPoolManager gapPoolManager,
             final PlatformTransactionManager transactionManager) {
-        return new HiLoAccountNumberSequenceService(jdbcTemplate, transactionManager);
+        return new HiLoAccountNumberSequenceService(gapPoolManager, transactionManager);
     }
 
     static final class HiLoAccountNumberSequenceService implements AccountNumberSequenceService {
 
-        private final JdbcTemplate jdbcTemplate;
+        private final AccountNumberGapPoolManager gapPoolManager;
         private final TransactionTemplate requiresNewTemplate;
         private final Map<String, HiLoBlock> blocks = new ConcurrentHashMap<>();
         private final Map<String, Queue<Long>> reclaimPools = new ConcurrentHashMap<>();
         private final Map<String, ReentrantLock> refillLocks = new ConcurrentHashMap<>();
-        private final Map<String, Boolean> bootstrappedScopes = new ConcurrentHashMap<>();
 
-        HiLoAccountNumberSequenceService(final JdbcTemplate jdbcTemplate, final PlatformTransactionManager transactionManager) {
-            this.jdbcTemplate = jdbcTemplate;
-            this.requiresNewTemplate = new TransactionTemplate(transactionManager);
-            this.requiresNewTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        HiLoAccountNumberSequenceService(final AccountNumberGapPoolManager gapPoolManager,
+                final PlatformTransactionManager transactionManager) {
+            this.gapPoolManager = gapPoolManager;
+            this.requiresNewTemplate = gapPoolManager.getRequiresNewTemplate();
         }
 
         @Override
@@ -69,11 +81,26 @@ public class AccountNumberSequenceAutoConfiguration {
             if (blockSize <= 0) {
                 throw new IllegalArgumentException("blockSize must be positive");
             }
-            ensureBootstrapped(CLIENT_GLOBAL_SCOPE_KEY);
+            if (this.gapPoolManager.isGapReuseEnabled()) {
+                final Long reclaimed = pollReclaim(CLIENT_GLOBAL_SCOPE_KEY);
+                if (reclaimed != null) {
+                    validateOverflow(reclaimed);
+                    return registerCompletionHandler(CLIENT_GLOBAL_SCOPE_KEY, reclaimed, false);
+                }
+
+                final Long gap = this.gapPoolManager.takeLowestGapRow();
+                if (gap != null) {
+                    validateOverflow(gap);
+                    scheduleGapRefillAfterTransaction();
+                    return registerCompletionHandler(CLIENT_GLOBAL_SCOPE_KEY, gap, true);
+                }
+                this.gapPoolManager.scheduleAsyncGapRefill();
+            }
 
             final Long reclaimed = pollReclaim(CLIENT_GLOBAL_SCOPE_KEY);
             if (reclaimed != null) {
-                return registerReclaimOnRollback(CLIENT_GLOBAL_SCOPE_KEY, reclaimed);
+                validateOverflow(reclaimed);
+                return registerCompletionHandler(CLIENT_GLOBAL_SCOPE_KEY, reclaimed, false);
             }
 
             HiLoBlock block = this.blocks.get(CLIENT_GLOBAL_SCOPE_KEY);
@@ -81,11 +108,34 @@ public class AccountNumberSequenceAutoConfiguration {
                 final long candidate = block.getAndIncrement();
                 if (block.hasCapacity(candidate)) {
                     validateOverflow(candidate);
-                    return registerReclaimOnRollback(CLIENT_GLOBAL_SCOPE_KEY, candidate);
+                    return registerCompletionHandler(CLIENT_GLOBAL_SCOPE_KEY, candidate, false);
                 }
             }
 
-            return registerReclaimOnRollback(CLIENT_GLOBAL_SCOPE_KEY, allocateFromRefill(blockSize));
+            this.gapPoolManager.ensureGlobalPointer();
+            final long allocated = allocateFromRefill(blockSize);
+            validateOverflow(allocated);
+            return registerCompletionHandler(CLIENT_GLOBAL_SCOPE_KEY, allocated, false);
+        }
+
+        private void scheduleGapRefillAfterTransaction() {
+            if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+                this.gapPoolManager.scheduleAsyncGapRefill();
+                return;
+            }
+            if (TransactionSynchronizationManager.getResource(GAP_REFILL_SCHEDULED_KEY) != null) {
+                return;
+            }
+            final FineractContext context = this.gapPoolManager.captureTenantContext();
+            TransactionSynchronizationManager.bindResource(GAP_REFILL_SCHEDULED_KEY, Boolean.TRUE);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+
+                @Override
+                public void afterCompletion(final int status) {
+                    TransactionSynchronizationManager.unbindResource(GAP_REFILL_SCHEDULED_KEY);
+                    gapPoolManager.scheduleAsyncGapRefillWithContext(context);
+                }
+            });
         }
 
         private long allocateFromRefill(final int blockSize) {
@@ -96,40 +146,30 @@ public class AccountNumberSequenceAutoConfiguration {
                 if (block != null) {
                     final long candidate = block.getAndIncrement();
                     if (block.hasCapacity(candidate)) {
-                        validateOverflow(candidate);
                         return candidate;
                     }
                 }
                 final long blockStart = allocateBlock(blockSize);
                 final long blockEnd = blockStart + blockSize - 1;
-                validateOverflow(blockEnd);
                 block = new HiLoBlock(blockStart, blockEnd);
                 this.blocks.put(CLIENT_GLOBAL_SCOPE_KEY, block);
-                final long first = block.getAndIncrement();
-                validateOverflow(first);
-                return first;
+                return block.getAndIncrement();
             } finally {
                 lock.unlock();
             }
         }
 
-        private void ensureBootstrapped(final String scopeKey) {
-            this.bootstrappedScopes.computeIfAbsent(scopeKey, key -> {
-                final Long maxExisting = this.jdbcTemplate.queryForObject(
-                        "SELECT COALESCE(MAX(CAST(account_no AS UNSIGNED)), 0) FROM m_client WHERE account_no REGEXP '^[0-9]+$'",
-                        Long.class);
-                this.jdbcTemplate.update("INSERT IGNORE INTO m_account_number_sequence (scope_key, next_value) VALUES (?, ?)", scopeKey,
-                        maxExisting + 1);
-                return Boolean.TRUE;
-            });
-        }
-
         private long allocateBlock(final int blockSize) {
             return this.requiresNewTemplate.execute(status -> {
-                this.jdbcTemplate.update("UPDATE m_account_number_sequence SET next_value = LAST_INSERT_ID(next_value + ?) WHERE scope_key = ?",
+                gapPoolManager.upsertGlobalPointer();
+                final int updated = gapPoolManager.getJdbcTemplate().update(
+                        "UPDATE m_account_number_sequence SET next_value = LAST_INSERT_ID(next_value + ?) WHERE scope_key = ?",
                         blockSize, CLIENT_GLOBAL_SCOPE_KEY);
-                final Long newNextValue = this.jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-                return newNextValue - blockSize + 1;
+                if (updated == 0) {
+                    throw new IllegalStateException("CLIENT:GLOBAL sequence row is missing after upsert");
+                }
+                final Long newNextValue = gapPoolManager.getJdbcTemplate().queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+                return newNextValue - blockSize;
             });
         }
 
@@ -138,19 +178,54 @@ public class AccountNumberSequenceAutoConfiguration {
             return pool == null ? null : pool.poll();
         }
 
-        private long registerReclaimOnRollback(final String scopeKey, final long value) {
+        private long registerCompletionHandler(final String scopeKey, final long value, final boolean gapClaim) {
             if (TransactionSynchronizationManager.isSynchronizationActive()) {
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 
                     @Override
                     public void afterCompletion(final int status) {
-                        if (status == STATUS_ROLLED_BACK) {
-                            reclaimPools.computeIfAbsent(scopeKey, key -> new ConcurrentLinkedQueue<>()).offer(value);
-                        }
+                        handleAllocationCompletion(scopeKey, value, gapClaim, status);
                     }
                 });
+            } else {
+                handleAllocationCompletionWithoutTransaction(scopeKey, value, gapClaim);
             }
             return value;
+        }
+
+        private void handleAllocationCompletion(final String scopeKey, final long value, final boolean gapClaim, final int status) {
+            if (gapClaim) {
+                if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                    deleteClaimRow(value);
+                } else if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                    restoreGapRow(scopeKey, value);
+                }
+            } else if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                reclaimPools.computeIfAbsent(scopeKey, key -> new ConcurrentLinkedQueue<>()).offer(value);
+                gapPoolManager.persistReclaimedGap(value);
+            }
+        }
+
+        private void handleAllocationCompletionWithoutTransaction(final String scopeKey, final long value, final boolean gapClaim) {
+            if (gapClaim) {
+                deleteClaimRow(value);
+            }
+        }
+
+        private void deleteClaimRow(final long value) {
+            this.gapPoolManager.getJdbcTemplate().update("DELETE FROM m_account_number_sequence WHERE scope_key = ?",
+                    CLAIM_SCOPE_PREFIX + value);
+        }
+
+        private void restoreGapRow(final String scopeKey, final long value) {
+            final int restored = this.gapPoolManager.getJdbcTemplate().update(
+                    "UPDATE m_account_number_sequence SET scope_key = ?, claimed_at = NULL WHERE scope_key = ?",
+                    GAP_SCOPE_PREFIX + value, CLAIM_SCOPE_PREFIX + value);
+            if (restored == 0) {
+                this.gapPoolManager.getJdbcTemplate().update("INSERT IGNORE INTO m_account_number_sequence (scope_key, next_value) VALUES (?, ?)",
+                        GAP_SCOPE_PREFIX + value, value);
+            }
+            reclaimPools.computeIfAbsent(scopeKey, key -> new ConcurrentLinkedQueue<>()).offer(value);
         }
 
         private void validateOverflow(final long value) {

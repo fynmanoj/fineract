@@ -16,20 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.fineract.infrastructure.accountnumberformat.sequence;
 
-dependencies {
-    implementation(project(':fineract-core'))
-    implementation(project(':fineract-provider'))
-    implementation('org.springframework:spring-tx')
-    implementation('org.springframework:spring-jdbc')
-    implementation('org.springframework.boot:spring-boot-starter')
-    implementation('org.springframework.batch:spring-batch-core')
+public enum AccountNumberGapJobName {
 
-    testImplementation('org.junit.jupiter:junit-jupiter')
-    testImplementation('org.mockito:mockito-junit-jupiter')
-    testImplementation('org.springframework:spring-test')
-    testImplementation('org.springframework:spring-jdbc')
-    testImplementation('org.mariadb.jdbc:mariadb-java-client')
-    testImplementation('org.testcontainers:junit-jupiter:1.19.7')
-    testImplementation('org.testcontainers:mariadb:1.19.7')
+    ACCOUNT_NUMBER_GAP_MAINTENANCE("Account Number Gap Maintenance");
+
+    private final String name;
+
+    AccountNumberGapJobName(final String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return this.name;
+    }
 }

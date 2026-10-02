@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -80,11 +82,13 @@ public class SessionHandlerServiceImplTest {
     public void createSessionForHumanUserUsesSlidingIdlePolicy() {
         final AppUser user = humanUser(1L, "human", false);
         when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-1");
-        when(userSessionRepository.findAllByUserId(1L)).thenReturn(List.of());
+        when(platformUserRepository.findOneLocked(1L)).thenReturn(Optional.of(user));
 
         final String token = underTest.createSession(user, null);
 
         assertEquals("token-1", token);
+        verify(platformUserRepository).findOneLocked(1L);
+        verify(userSessionRepository).deleteAllByUserId(1L);
         final ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
         verify(userSessionRepository).save(captor.capture());
         assertEquals(SessionPolicy.SLIDING_IDLE, captor.getValue().getSessionPolicyEnum());
@@ -95,10 +99,13 @@ public class SessionHandlerServiceImplTest {
     public void createSessionForSystemUserUsesHardExpiryPolicy() {
         final AppUser user = systemUser(2L, "integration", 3600, false);
         when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-2");
-        when(userSessionRepository.findAllByUserId(2L)).thenReturn(List.of());
+        when(platformUserRepository.findOneLocked(2L)).thenReturn(Optional.of(user));
+        when(userSessionRepository.findValidHardExpirySessions(eq(2L), any(LocalDateTime.class))).thenReturn(List.of());
 
         underTest.createSession(user, "client-a");
 
+        verify(platformUserRepository).findOneLocked(2L);
+        verify(userSessionRepository).deleteAllByUserId(2L);
         final ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
         verify(userSessionRepository).save(captor.capture());
         assertEquals(SessionPolicy.HARD_EXPIRY, captor.getValue().getSessionPolicyEnum());
@@ -110,14 +117,52 @@ public class SessionHandlerServiceImplTest {
     }
 
     @Test
+    public void createSessionForSystemUserReusesValidSession() {
+        final AppUser user = systemUser(5L, "integration", 3600, false);
+        final UserSession existingSession = new UserSession();
+        existingSession.setSessionKey("existing-token");
+        when(platformUserRepository.findOneLocked(5L)).thenReturn(Optional.of(user));
+        when(userSessionRepository.findValidHardExpirySessions(eq(5L), any(LocalDateTime.class))).thenReturn(List.of(existingSession));
+
+        assertEquals("existing-token", underTest.createSession(user, "client-a"));
+
+        verify(userSessionRepository, never()).deleteAllByUserId(5L);
+        verify(userSessionRepository, never()).save(any());
+        verify(accessTokenGenerationService, never()).generateRandomToken();
+    }
+
+    @Test
+    public void createSessionForSystemUserCreatesNewWhenNoValidSession() {
+        final AppUser user = systemUser(6L, "integration", 3600, false);
+        when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-6");
+        when(platformUserRepository.findOneLocked(6L)).thenReturn(Optional.of(user));
+        when(userSessionRepository.findValidHardExpirySessions(eq(6L), any(LocalDateTime.class))).thenReturn(List.of());
+
+        assertEquals("token-6", underTest.createSession(user, null));
+
+        verify(userSessionRepository).deleteAllByUserId(6L);
+        verify(userSessionRepository).save(any(UserSession.class));
+    }
+
+    @Test
     public void createSessionSkipsEvictionWhenMultipleSessionsAllowed() {
         final AppUser user = systemUser(3L, "multi", 3600, true);
         when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-3");
 
         underTest.createSession(user, null);
 
-        verify(userSessionRepository, never()).findAllByUserId(3L);
-        verify(userSessionRepository, never()).deleteAll(any());
+        verify(platformUserRepository, never()).findOneLocked(3L);
+        verify(userSessionRepository, never()).deleteAllByUserId(eq(3L));
+    }
+
+    @Test
+    public void invalidateUserSessionsLocksUserAndDeletesSessions() {
+        when(platformUserRepository.findOneLocked(4L)).thenReturn(Optional.of(mock(AppUser.class)));
+
+        underTest.invalidateUserSessions(4L);
+
+        verify(platformUserRepository).findOneLocked(4L);
+        verify(userSessionRepository).deleteAllByUserId(4L);
     }
 
     @Test
@@ -184,9 +229,9 @@ public class SessionHandlerServiceImplTest {
     private AppUser systemUser(final Long id, final String username, final int expirySeconds, final boolean allowMultipleSessions) {
         final AppUser user = mock(AppUser.class);
         when(user.getId()).thenReturn(id);
-        when(user.getUsername()).thenReturn(username);
+        lenient().when(user.getUsername()).thenReturn(username);
         when(user.isSystemUser()).thenReturn(true);
-        when(user.getSessionExpirySeconds()).thenReturn(expirySeconds);
+        lenient().when(user.getSessionExpirySeconds()).thenReturn(expirySeconds);
         when(user.isAllowMultipleSessions()).thenReturn(allowMultipleSessions);
         return user;
     }

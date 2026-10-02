@@ -18,8 +18,6 @@
  */
 package org.apache.fineract.infrastructure.bulkimport.importhandler.savings;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -32,9 +30,6 @@ import org.apache.fineract.infrastructure.bulkimport.constants.TransactionConsta
 import org.apache.fineract.infrastructure.bulkimport.data.Count;
 import org.apache.fineract.infrastructure.bulkimport.importhandler.ImportHandler;
 import org.apache.fineract.infrastructure.bulkimport.importhandler.ImportHandlerUtils;
-import org.apache.fineract.infrastructure.bulkimport.importhandler.helper.DateSerializer;
-import org.apache.fineract.infrastructure.bulkimport.importhandler.helper.SavingsAccountTransactionEnumValueSerialiser;
-import org.apache.fineract.infrastructure.core.serialization.GoogleGsonSerializerHelper;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionData;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionEnumData;
 import org.apache.poi.ss.usermodel.Cell;
@@ -50,9 +45,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class SavingsTransactionImportHandler implements ImportHandler {
 
-    public static final String TRANSACTION_TYPE = "transactionType";
-    public static final String REVERSED = "reversed";
-    public static final String INTERESTED_POSTED_AS_ON = "interestedPostedAsOn";
     public static final String WITHDRAWAL = "Withdrawal";
     public static final String DEPOSIT = "Deposit";
     private static final Logger LOG = LoggerFactory.getLogger(SavingsTransactionImportHandler.class);
@@ -120,17 +112,10 @@ public class SavingsTransactionImportHandler implements ImportHandler {
         int successCount = 0;
         int errorCount = 0;
         String errorMessage = "";
-        GsonBuilder gsonBuilder = GoogleGsonSerializerHelper.createGsonBuilder();
-        gsonBuilder.registerTypeAdapter(LocalDate.class, new DateSerializer(dateFormat));
-        gsonBuilder.registerTypeAdapter(SavingsAccountTransactionEnumData.class, new SavingsAccountTransactionEnumValueSerialiser());
 
         for (SavingsAccountTransactionData transaction : savingsTransactions) {
             try {
-                JsonObject savingsTransactionJsonob = gsonBuilder.create().toJsonTree(transaction).getAsJsonObject();
-                savingsTransactionJsonob.remove(TRANSACTION_TYPE);
-                savingsTransactionJsonob.remove(REVERSED);
-                savingsTransactionJsonob.remove(INTERESTED_POSTED_AS_ON);
-                String payload = savingsTransactionJsonob.toString();
+                String payload = ImportHandlerUtils.toSavingsTransactionCommandJson(transaction, dateFormat);
                 CommandWrapper commandRequest = null;
                 if (transaction.getTransactionType().getValue().equals(WITHDRAWAL)) {
                     commandRequest = new CommandWrapperBuilder() //

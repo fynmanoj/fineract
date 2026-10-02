@@ -18,8 +18,6 @@
  */
 package org.apache.fineract.infrastructure.bulkimport.importhandler.recurringdeposit;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -32,10 +30,7 @@ import org.apache.fineract.infrastructure.bulkimport.constants.TransactionConsta
 import org.apache.fineract.infrastructure.bulkimport.data.Count;
 import org.apache.fineract.infrastructure.bulkimport.importhandler.ImportHandler;
 import org.apache.fineract.infrastructure.bulkimport.importhandler.ImportHandlerUtils;
-import org.apache.fineract.infrastructure.bulkimport.importhandler.helper.DateSerializer;
-import org.apache.fineract.infrastructure.bulkimport.importhandler.helper.SavingsAccountTransactionEnumValueSerialiser;
 import org.apache.fineract.infrastructure.core.exception.AbstractPlatformDomainRuleException;
-import org.apache.fineract.infrastructure.core.serialization.GoogleGsonSerializerHelper;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionData;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionEnumData;
 import org.apache.poi.ss.usermodel.Cell;
@@ -117,17 +112,10 @@ public class RecurringDepositTransactionImportHandler implements ImportHandler {
         int successCount = 0;
         int errorCount = 0;
         String errorMessage = "";
-        GsonBuilder gsonBuilder = GoogleGsonSerializerHelper.createGsonBuilder();
-        gsonBuilder.registerTypeAdapter(LocalDate.class, new DateSerializer(dateFormat));
-        gsonBuilder.registerTypeAdapter(SavingsAccountTransactionEnumData.class, new SavingsAccountTransactionEnumValueSerialiser());
 
         for (SavingsAccountTransactionData transaction : savingsTransactions) {
             try {
-                JsonObject savingsTransactionJsonob = gsonBuilder.create().toJsonTree(transaction).getAsJsonObject();
-                savingsTransactionJsonob.remove("transactionType");
-                savingsTransactionJsonob.remove("reversed");
-                savingsTransactionJsonob.remove("interestedPostedAsOn");
-                String payload = savingsTransactionJsonob.toString();
+                String payload = ImportHandlerUtils.toSavingsTransactionCommandJson(transaction, dateFormat);
                 CommandWrapper commandRequest = null;
                 if (transaction.getTransactionType().getValue().equals("Withdrawal")) {
                     commandRequest = new CommandWrapperBuilder() //

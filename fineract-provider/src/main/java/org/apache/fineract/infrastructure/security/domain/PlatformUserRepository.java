@@ -18,9 +18,13 @@
  */
 package org.apache.fineract.infrastructure.security.domain;
 
+import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import org.apache.fineract.useradministration.domain.AppUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -29,6 +33,10 @@ public interface PlatformUserRepository extends JpaRepository<AppUser, Long> {
     AppUser findByUsernameAndDeletedAndEnabled(String username, boolean deleted, boolean enabled);
 
     Optional<AppUser> findByUsername(String username);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from AppUser u where u.id = :userId")
+    Optional<AppUser> findOneLocked(@Param("userId") Long userId);
 
 }
 

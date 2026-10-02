@@ -19,10 +19,14 @@
 package org.apache.fineract.infrastructure.bulkimport.importhandler;
 
 import com.google.common.base.Splitter;
+import com.google.gson.JsonObject;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.fineract.infrastructure.bulkimport.importhandler.helper.DateSerializer;
+import org.apache.fineract.portfolio.savings.SavingsApiConstants;
+import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionData;
 import org.apache.fineract.infrastructure.bulkimport.constants.TemplatePopulateImportConstants;
 import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
@@ -434,6 +438,37 @@ public final class ImportHandlerUtils {
             return repeatsOnDay;
         } else {
             return null;
+        }
+    }
+
+    public static String toSavingsTransactionCommandJson(final SavingsAccountTransactionData transaction, final String dateFormat) {
+        final JsonObject json = new JsonObject();
+        final DateSerializer dateSerializer = new DateSerializer(dateFormat);
+
+        if (transaction.getTransactionDate() != null) {
+            json.add(SavingsApiConstants.transactionDateParamName,
+                    dateSerializer.serialize(transaction.getTransactionDate(), null, null));
+        }
+        if (transaction.getTransactionAmount() != null) {
+            json.addProperty(SavingsApiConstants.transactionAmountParamName, transaction.getTransactionAmount().toPlainString());
+        }
+        if (transaction.getPaymentTypeId() != null) {
+            json.addProperty(SavingsApiConstants.paymentTypeIdParamName, transaction.getPaymentTypeId());
+        }
+        addStringPropertyIfPresent(json, SavingsApiConstants.localeParamName, transaction.getLocale());
+        addStringPropertyIfPresent(json, SavingsApiConstants.dateFormatParamName, transaction.getDateFormat());
+        addStringPropertyIfPresent(json, SavingsApiConstants.transactionAccountNumberParamName, transaction.getAccountNumber());
+        addStringPropertyIfPresent(json, SavingsApiConstants.checkNumberParamName, transaction.getCheckNumber());
+        addStringPropertyIfPresent(json, SavingsApiConstants.routingCodeParamName, transaction.getRoutingCode());
+        addStringPropertyIfPresent(json, SavingsApiConstants.receiptNumberParamName, transaction.getReceiptNumber());
+        addStringPropertyIfPresent(json, SavingsApiConstants.bankNumberParamName, transaction.getBankNumber());
+
+        return json.toString();
+    }
+
+    private static void addStringPropertyIfPresent(final JsonObject json, final String propertyName, final String value) {
+        if (StringUtils.isNotBlank(value)) {
+            json.addProperty(propertyName, value);
         }
     }
 }

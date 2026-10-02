@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.acme.fineract.event.externalevent;
+package     com.acme.fineract.event.externalevent;
 
 import java.util.List;
 import org.apache.fineract.infrastructure.event.external.service.validation.ExternalEventSourceData;

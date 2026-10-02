@@ -28,4 +28,8 @@ public interface UserSessionRepository extends JpaRepository<UserSession, String
     @Modifying
     @Query("DELETE FROM UserSession s WHERE s.sessionPolicy = 'SLIDING_IDLE' AND s.lastUsedAt < :cutoff")
     int deleteIdleSlidingSessions(@Param("cutoff") LocalDateTime cutoff);
+
+    @Modifying
+    @Query("DELETE FROM UserSession s WHERE s.userId = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

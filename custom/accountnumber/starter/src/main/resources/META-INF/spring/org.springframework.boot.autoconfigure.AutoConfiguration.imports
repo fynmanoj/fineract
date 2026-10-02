@@ -1,1 +1,3 @@
 org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberSequenceAutoConfiguration
+org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapJobNameConfig
+org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapMaintenanceJobConfiguration

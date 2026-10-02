@@ -2,18 +2,14 @@ package org.apache.fineract.infrastructure.security.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.fineract.infrastructure.businessdate.domain.BusinessDateType;
@@ -23,12 +19,9 @@ import org.apache.fineract.infrastructure.core.config.FineractProperties.Finerac
 import org.apache.fineract.infrastructure.core.config.FineractProperties.FineractSecuritySystemUser;
 import org.apache.fineract.infrastructure.core.domain.ActionContext;
 import org.apache.fineract.infrastructure.core.domain.FineractPlatformTenant;
-import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.infrastructure.hooks.domain.Hook;
 import org.apache.fineract.infrastructure.security.domain.PlatformUserRepository;
-import org.apache.fineract.infrastructure.security.domain.UserSession;
-import org.apache.fineract.infrastructure.security.domain.UserSessionRepository;
 import org.apache.fineract.useradministration.domain.AppUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,8 +34,6 @@ public class SystemUserTokenServiceImplTest {
 
     @Mock
     private PlatformUserRepository platformUserRepository;
-    @Mock
-    private UserSessionRepository userSessionRepository;
     @Mock
     private SessionHandlerService sessionHandlerService;
     @Mock
@@ -65,29 +56,28 @@ public class SystemUserTokenServiceImplTest {
         security.setSystemUser(systemUser);
         fineractProperties.setSecurity(security);
 
-        underTest = new SystemUserTokenServiceImpl(platformUserRepository, userSessionRepository, sessionHandlerService,
-                configurationDomainService, fineractProperties);
+        underTest = new SystemUserTokenServiceImpl(platformUserRepository, sessionHandlerService, configurationDomainService,
+                fineractProperties);
     }
 
     @Test
-    public void getValidTokenForUserReusesExistingSession() {
+    public void getValidTokenForUserDelegatesToCreateSession() {
         final AppUser systemUser = buildSystemUser(10L, "template_system");
-        final UserSession existingSession = new UserSession();
-        existingSession.setSessionKey("existing-token");
         when(platformUserRepository.findById(10L)).thenReturn(Optional.of(systemUser));
-        when(userSessionRepository.findValidHardExpirySessions(eq(10L), any(LocalDateTime.class))).thenReturn(List.of(existingSession));
+        when(sessionHandlerService.createSession(systemUser, "hook-internal")).thenReturn("existing-token");
 
         assertEquals("existing-token", underTest.getValidTokenForUser(10L));
+        verify(sessionHandlerService).createSession(systemUser, "hook-internal");
     }
 
     @Test
     public void getValidTokenForUserCreatesSessionWhenNoneExists() {
         final AppUser systemUser = buildSystemUser(10L, "template_system");
         when(platformUserRepository.findById(10L)).thenReturn(Optional.of(systemUser));
-        when(userSessionRepository.findValidHardExpirySessions(eq(10L), any(LocalDateTime.class))).thenReturn(List.of());
         when(sessionHandlerService.createSession(systemUser, "hook-internal")).thenReturn("new-token");
 
         assertEquals("new-token", underTest.getValidTokenForUser(10L));
+        verify(sessionHandlerService).createSession(systemUser, "hook-internal");
     }
 
     @Test
@@ -104,11 +94,11 @@ public class SystemUserTokenServiceImplTest {
         final Hook hook = new Hook();
         hook.setSystemUserId(99L);
         final AppUser hookUser = buildSystemUser(99L, "hook-user");
-        when(platformUserRepository.findById(99L)).thenReturn(Optional.of(hookUser)); // called twice: resolve + getValidToken
-        when(userSessionRepository.findValidHardExpirySessions(eq(99L), any(LocalDateTime.class))).thenReturn(List.of());
+        when(platformUserRepository.findById(99L)).thenReturn(Optional.of(hookUser));
         when(sessionHandlerService.createSession(hookUser, "hook-internal")).thenReturn("hook-token");
 
         assertEquals("hook-token", underTest.getHookSystemToken(hook));
+        verify(sessionHandlerService).createSession(hookUser, "hook-internal");
     }
 
     @Test
@@ -116,10 +106,10 @@ public class SystemUserTokenServiceImplTest {
         final AppUser defaultUser = buildSystemUser(11L, "template_system");
         when(platformUserRepository.findByUsername("template_system")).thenReturn(Optional.of(defaultUser));
         when(platformUserRepository.findById(11L)).thenReturn(Optional.of(defaultUser));
-        when(userSessionRepository.findValidHardExpirySessions(eq(11L), any(LocalDateTime.class))).thenReturn(List.of());
         when(sessionHandlerService.createSession(defaultUser, "hook-internal")).thenReturn("default-token");
 
         assertEquals("default-token", underTest.getHookSystemToken(null));
+        verify(sessionHandlerService).createSession(defaultUser, "hook-internal");
     }
 
     @Test
