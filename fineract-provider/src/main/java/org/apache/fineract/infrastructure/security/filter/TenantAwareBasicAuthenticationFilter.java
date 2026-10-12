@@ -30,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.fineract.infrastructure.businessdate.domain.BusinessDateType;
 import org.apache.fineract.infrastructure.businessdate.service.BusinessDateReadPlatformService;
-import org.apache.fineract.infrastructure.cache.domain.CacheType;
 import org.apache.fineract.infrastructure.cache.service.CacheWritePlatformService;
 import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
 import org.apache.fineract.infrastructure.core.domain.FineractPlatformTenant;
@@ -140,12 +139,7 @@ public class TenantAwareBasicAuthenticationFilter extends BasicAuthenticationFil
                         final String baseUrl = request.getRequestURL().toString().replace(request.getPathInfo(), "/");
                         System.setProperty("baseUrl", baseUrl);
 
-                        final boolean ehcacheEnabled = this.configurationDomainService.isEhcacheEnabled();
-                        if (ehcacheEnabled) {
-                            this.cacheWritePlatformService.switchToCache(CacheType.SINGLE_NODE);
-                        } else {
-                            this.cacheWritePlatformService.switchToCache(CacheType.NO_CACHE);
-                        }
+                        this.cacheWritePlatformService.switchToCache(this.configurationDomainService.getActiveCacheType());
                         TenantAwareBasicAuthenticationFilter.firstRequestProcessed = true;
                     }
                 }

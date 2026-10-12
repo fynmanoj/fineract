@@ -20,6 +20,7 @@
 package org.apache.fineract.infrastructure.core.config.cache;
 
 import java.time.Duration;
+import java.util.Map;
 import javax.cache.CacheManager;
 import javax.cache.Caching;
 import javax.cache.spi.CachingProvider;
@@ -35,7 +36,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class CacheConfig {
 
-    public static final String CONFIG_BY_NAME_CACHE_NAME = "configByName";
+    public static final String CONFIG_BY_NAME_CACHE_NAME = CacheRegionDefinitions.CONFIG_BY_NAME_CACHE_NAME;
 
     @Bean
     public TransactionBoundCacheManager defaultCacheManager(JCacheCacheManager ehCacheManager) {
@@ -57,64 +58,23 @@ public class CacheConfig {
         CachingProvider provider = Caching.getCachingProvider();
         CacheManager cacheManager = provider.getCacheManager();
 
-        javax.cache.configuration.Configuration<Object, Object> defaultTemplate = Eh107Configuration.fromEhcacheCacheConfiguration(
+        final javax.cache.configuration.Configuration<Object, Object> defaultTemplate = Eh107Configuration.fromEhcacheCacheConfiguration(
                 CacheConfigurationBuilder.newCacheConfigurationBuilder(Object.class, Object.class, ResourcePoolsBuilder.heap(10000))
                         .withExpiry(ExpiryPolicyBuilder.noExpiration()).build());
 
-        if (cacheManager.getCache("users") == null) {
-            cacheManager.createCache("users", defaultTemplate);
-        }
-        if (cacheManager.getCache("usersByUsername") == null) {
-            cacheManager.createCache("usersByUsername", defaultTemplate);
-        }
-        if (cacheManager.getCache("tenantsById") == null) {
-            cacheManager.createCache("tenantsById", defaultTemplate);
-        }
-        if (cacheManager.getCache("offices") == null) {
-            cacheManager.createCache("offices", defaultTemplate);
-        }
-        if (cacheManager.getCache("officesForDropdown") == null) {
-            cacheManager.createCache("officesForDropdown", defaultTemplate);
-        }
-        if (cacheManager.getCache("officesById") == null) {
-            cacheManager.createCache("officesById", defaultTemplate);
-        }
-        if (cacheManager.getCache("charges") == null) {
-            cacheManager.createCache("charges", defaultTemplate);
-        }
-        if (cacheManager.getCache("funds") == null) {
-            cacheManager.createCache("funds", defaultTemplate);
-        }
-        if (cacheManager.getCache("code_values") == null) {
-            cacheManager.createCache("code_values", defaultTemplate);
-        }
-        if (cacheManager.getCache("codes") == null) {
-            cacheManager.createCache("codes", defaultTemplate);
-        }
-        if (cacheManager.getCache("hooks") == null) {
-            cacheManager.createCache("hooks", defaultTemplate);
-        }
-        if (cacheManager.getCache("tfConfig") == null) {
-            cacheManager.createCache("tfConfig", defaultTemplate);
-        }
-        if (cacheManager.getCache(CONFIG_BY_NAME_CACHE_NAME) == null) {
-            cacheManager.createCache(CONFIG_BY_NAME_CACHE_NAME, defaultTemplate);
-        }
-
-        javax.cache.configuration.Configuration<Object, Object> accessTokenTemplate = Eh107Configuration.fromEhcacheCacheConfiguration(
-                CacheConfigurationBuilder.newCacheConfigurationBuilder(Object.class, Object.class, ResourcePoolsBuilder.heap(10000))
-                        .withExpiry(ExpiryPolicyBuilder.timeToIdleExpiration(Duration.ofHours(2))).build());
-
-        javax.cache.configuration.Configuration<Object, Object> sessionTokenTemplate = Eh107Configuration.fromEhcacheCacheConfiguration(
-                CacheConfigurationBuilder.newCacheConfigurationBuilder(Object.class, Object.class, ResourcePoolsBuilder.heap(10000))
-                        .withExpiry(ExpiryPolicyBuilder.timeToIdleExpiration(Duration.ofMinutes(10))).build());
-
-        if (cacheManager.getCache("userTFAccessToken") == null) {
-            cacheManager.createCache("userTFAccessToken", accessTokenTemplate);
-        }
-
-        if (cacheManager.getCache("useSessionToken") == null) {
-            cacheManager.createCache("useSessionToken", sessionTokenTemplate);
+        for (Map.Entry<String, Duration> region : CacheRegionDefinitions.getCacheRegions().entrySet()) {
+            if (cacheManager.getCache(region.getKey()) == null) {
+                final Duration expiry = region.getValue();
+                if (expiry != null && !expiry.isZero()) {
+                    final javax.cache.configuration.Configuration<Object, Object> template = Eh107Configuration
+                            .fromEhcacheCacheConfiguration(CacheConfigurationBuilder
+                                    .newCacheConfigurationBuilder(Object.class, Object.class, ResourcePoolsBuilder.heap(10000))
+                                    .withExpiry(ExpiryPolicyBuilder.timeToIdleExpiration(expiry)).build());
+                    cacheManager.createCache(region.getKey(), template);
+                } else {
+                    cacheManager.createCache(region.getKey(), defaultTemplate);
+                }
+            }
         }
 
         return cacheManager;

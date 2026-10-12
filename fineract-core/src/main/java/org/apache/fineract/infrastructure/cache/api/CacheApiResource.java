@@ -58,7 +58,8 @@ import org.springframework.stereotype.Component;
 @Produces({ MediaType.APPLICATION_JSON })
 @Component
 @Tag(name = "Cache", description = "The following settings are possible for cache:\n" + "\n" + "No Caching: caching turned off\n"
-        + "Single node: caching on for single instance deployments of platorm (works for multiple tenants but only one tomcat)\n"
+        + "Single node: caching on for single instance deployments of platorm (works for multiple tenants but only one tomcat) using Ehcache\n"
+        + "Multi node: distributed caching using Redis for horizontally scaled deployments\n"
         + "By default caching is set to No Caching. Switching between caches results in the cache been clear e.g. from Single node to No cache and back again would clear down the single node cache.")
 @RequiredArgsConstructor
 public class CacheApiResource {

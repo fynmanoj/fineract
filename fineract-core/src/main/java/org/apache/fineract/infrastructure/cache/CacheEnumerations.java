@@ -45,7 +45,8 @@ public final class CacheEnumerations {
                         "Single node");
             break;
             case MULTI_NODE:
-                optionData = new EnumOptionData(CacheType.MULTI_NODE.getValue().longValue(), CacheType.MULTI_NODE.getCode(), "Multi node");
+                optionData = new EnumOptionData(CacheType.MULTI_NODE.getValue().longValue(), CacheType.MULTI_NODE.getCode(),
+                        "Multi node (Redis)");
             break;
         }
 

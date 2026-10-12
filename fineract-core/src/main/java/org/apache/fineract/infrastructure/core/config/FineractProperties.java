@@ -19,6 +19,7 @@
 
 package org.apache.fineract.infrastructure.core.config;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -77,6 +78,32 @@ public class FineractProperties {
     private FineractSamplingProperties sampling;
 
     private FineractModulesProperties module;
+
+    private FineractCacheProperties cache;
+
+    @Getter
+    @Setter
+    public static class FineractCacheProperties {
+
+        private FineractCacheRedisProperties redis;
+    }
+
+    @Getter
+    @Setter
+    public static class FineractCacheRedisProperties {
+
+        private boolean enabled;
+        private String host;
+        private Integer port;
+        private String password;
+        private boolean sslEnabled;
+        private Duration timeout;
+        private String keyPrefix;
+
+        public boolean isConfigured() {
+            return enabled && StringUtils.isNotBlank(host);
+        }
+    }
 
     @Getter
     @Setter

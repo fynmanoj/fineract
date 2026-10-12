@@ -157,6 +157,8 @@ dependencies {
         exclude group: 'com.sun.activation'
     }
 
+    implementation ('org.springframework.boot:spring-boot-starter-data-redis')
+
     implementation('org.owasp.esapi:esapi') {
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
@@ -210,4 +212,5 @@ dependencies {
         exclude group: 'org.skyscreamer'
     }
     testImplementation ('org.mockito:mockito-inline')
+    testImplementation('org.testcontainers:junit-jupiter:1.19.7')
 }

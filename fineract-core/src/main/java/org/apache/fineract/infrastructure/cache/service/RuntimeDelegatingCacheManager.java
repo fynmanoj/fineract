@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.cache.CacheApiConstants;
 import org.apache.fineract.infrastructure.cache.CacheEnumerations;
@@ -32,6 +31,7 @@ import org.apache.fineract.infrastructure.cache.data.CacheData;
 import org.apache.fineract.infrastructure.cache.domain.CacheType;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -45,15 +45,25 @@ import org.springframework.stereotype.Component;
  * database on startup and allow user to switch implementation through UI/API
  */
 @Component(value = "runtimeDelegatingCacheManager")
-@RequiredArgsConstructor
 @Slf4j
 public class RuntimeDelegatingCacheManager implements CacheManager, InitializingBean {
 
-    @Qualifier("ehCacheManager")
     private final CacheManager ehCacheManager;
-    @Qualifier("defaultCacheManager")
     private final CacheManager defaultCacheManager;
+    private CacheManager redisCacheManager;
     private CacheManager currentCacheManager;
+
+    public RuntimeDelegatingCacheManager(@Qualifier("ehCacheManager") final CacheManager ehCacheManager,
+            @Qualifier("defaultCacheManager") final CacheManager defaultCacheManager) {
+        this.ehCacheManager = ehCacheManager;
+        this.defaultCacheManager = defaultCacheManager;
+    }
+
+    @Autowired(required = false)
+    @Qualifier("redisCacheManager")
+    public void setRedisCacheManager(final CacheManager redisCacheManager) {
+        this.redisCacheManager = redisCacheManager;
+    }
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -74,56 +84,71 @@ public class RuntimeDelegatingCacheManager implements CacheManager, Initializing
 
         final boolean noCacheEnabled = currentCacheManager == defaultCacheManager;
         final boolean ehCacheEnabled = currentCacheManager == ehCacheManager;
+        final boolean redisCacheEnabled = redisCacheManager != null && currentCacheManager == redisCacheManager;
 
         final EnumOptionData noCacheType = CacheEnumerations.cacheType(CacheType.NO_CACHE);
         final EnumOptionData singleNodeCacheType = CacheEnumerations.cacheType(CacheType.SINGLE_NODE);
+        final EnumOptionData multiNodeCacheType = CacheEnumerations.cacheType(CacheType.MULTI_NODE);
 
         final CacheData noCache = CacheData.instance(noCacheType, noCacheEnabled);
         final CacheData singleNodeCache = CacheData.instance(singleNodeCacheType, ehCacheEnabled);
+        final CacheData multiNodeCache = CacheData.instance(multiNodeCacheType, redisCacheEnabled);
 
-        return Arrays.asList(noCache, singleNodeCache);
+        return Arrays.asList(noCache, singleNodeCache, multiNodeCache);
     }
 
-    public Map<String, Object> switchToCache(final boolean ehcacheEnabled, final CacheType toCacheType) {
+    public Map<String, Object> switchToCache(final CacheType fromCacheType, final CacheType toCacheType) {
 
         final Map<String, Object> changes = new HashMap<>();
 
-        final boolean noCacheEnabled = !ehcacheEnabled;
+        if (fromCacheType != toCacheType) {
+            changes.put(CacheApiConstants.CACHE_TYPE_PARAMETER, toCacheType.getValue());
+        }
 
         switch (toCacheType) {
-            case INVALID -> {
-                log.warn("Invalid cache type used");
-            }
+            case INVALID -> log.warn("Invalid cache type used");
             case NO_CACHE -> {
-                if (!noCacheEnabled) {
-                    changes.put(CacheApiConstants.CACHE_TYPE_PARAMETER, toCacheType.getValue());
-                }
                 currentCacheManager = defaultCacheManager;
             }
             case SINGLE_NODE -> {
-                if (!ehcacheEnabled) {
-                    changes.put(CacheApiConstants.CACHE_TYPE_PARAMETER, toCacheType.getValue());
-                    clearEhCache();
+                if (fromCacheType != toCacheType) {
+                    clearCacheManager(ehCacheManager);
                 }
                 currentCacheManager = ehCacheManager;
-
-                if (currentCacheManager.getCacheNames().isEmpty()) {
-                    log.error("No caches configured for activated CacheManager {}", currentCacheManager);
-                }
+                validateCacheManager(currentCacheManager);
             }
-            case MULTI_NODE -> throw new UnsupportedOperationException("Multi node cache is not supported");
+            case MULTI_NODE -> {
+                if (redisCacheManager == null) {
+                    throw new IllegalStateException(
+                            "Redis cache is not configured. Enable fineract.cache.redis.enabled and provide connection details.");
+                }
+                if (fromCacheType != toCacheType) {
+                    clearCacheManager(redisCacheManager);
+                }
+                currentCacheManager = redisCacheManager;
+                validateCacheManager(currentCacheManager);
+            }
         }
 
         return changes;
     }
 
+    private void validateCacheManager(final CacheManager cacheManager) {
+        if (cacheManager.getCacheNames().isEmpty()) {
+            log.error("No caches configured for activated CacheManager {}", cacheManager);
+        }
+    }
+
     @SuppressFBWarnings(value = "DCN_NULLPOINTER_EXCEPTION", justification = "TODO: fix this!")
-    private void clearEhCache() {
-        Iterable<String> cacheNames = ehCacheManager.getCacheNames();
+    private void clearCacheManager(final CacheManager cacheManager) {
+        if (cacheManager == null) {
+            return;
+        }
+        Iterable<String> cacheNames = cacheManager.getCacheNames();
         for (String cacheName : cacheNames) {
             try {
-                if (Objects.nonNull(ehCacheManager.getCache(cacheName))) {
-                    Objects.requireNonNull(ehCacheManager.getCache(cacheName)).clear();
+                if (Objects.nonNull(cacheManager.getCache(cacheName))) {
+                    Objects.requireNonNull(cacheManager.getCache(cacheName)).clear();
                 }
             } catch (NullPointerException npe) {
                 log.warn(npe.getMessage());
