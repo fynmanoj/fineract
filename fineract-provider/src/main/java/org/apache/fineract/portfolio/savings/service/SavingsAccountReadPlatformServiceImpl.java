@@ -1817,4 +1817,14 @@ public class SavingsAccountReadPlatformServiceImpl implements SavingsAccountRead
     public Long retrieveAccountIdByExternalId(final ExternalId externalId) {
         return savingsAccountRepositoryWrapper.findIdByExternalId(externalId);
     }
+
+    @Override
+    public Long retrieveAccountIdByAccountNumber(final String accountNumber) {
+        try {
+            return this.jdbcTemplate.queryForObject("select sa.id from m_savings_account sa where sa.account_no = ?", Long.class,
+                    accountNumber);
+        } catch (final EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
 }
