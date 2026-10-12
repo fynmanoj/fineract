@@ -64,37 +64,35 @@ class AccountNumberGapPoolIntegrationTest {
     }
 
     @Test
-    void refillGapPool_findsGapAtTenThousandChunkBoundary() {
-        insertClient("9999");
-        insertClient("10001");
-        this.jdbcTemplate.update("UPDATE c_configuration SET value = 10000 WHERE name = 'startup-gap-scan-fill-size'");
+    void refillGapPool_findsGapAtScanWindowChunkBoundary() {
+        insertClient("1999");
+        insertClient("2001");
         this.jdbcTemplate.update("UPDATE c_configuration SET value = 1 WHERE name = 'account-number-gap-pool-low-watermark'");
         this.jdbcTemplate.update(
-                "INSERT INTO m_account_number_sequence (scope_key, next_value) VALUES ('CLIENT:GLOBAL:GAP_SCAN', 1) "
-                        + "ON DUPLICATE KEY UPDATE next_value = 1");
+                "INSERT INTO m_account_number_sequence (scope_key, next_value) VALUES ('CLIENT:GLOBAL:GAP_SCAN', 2000) "
+                        + "ON DUPLICATE KEY UPDATE next_value = 2000");
 
         this.gapPoolManager.refillGapPoolInternal();
 
-        final Integer gapTenThousand = this.jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM m_account_number_sequence WHERE scope_key = 'CLIENT:GLOBAL:GAP:10000'", Integer.class);
-        assertEquals(1, gapTenThousand);
+        final Integer gapAtWindowEnd = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM m_account_number_sequence WHERE scope_key = 'CLIENT:GLOBAL:GAP:2000'", Integer.class);
+        assertEquals(1, gapAtWindowEnd);
     }
 
     @Test
-    void refillGapPool_findsGapAtTwentyThousandWhenCursorStartsAtNextChunk() {
-        insertClient("19999");
-        insertClient("20001");
-        this.jdbcTemplate.update("UPDATE c_configuration SET value = 10000 WHERE name = 'startup-gap-scan-fill-size'");
+    void refillGapPool_findsGapWhenCursorStartsAtNextChunk() {
+        insertClient("3999");
+        insertClient("4001");
         this.jdbcTemplate.update("UPDATE c_configuration SET value = 1 WHERE name = 'account-number-gap-pool-low-watermark'");
         this.jdbcTemplate.update(
-                "INSERT INTO m_account_number_sequence (scope_key, next_value) VALUES ('CLIENT:GLOBAL:GAP_SCAN', 10001) "
-                        + "ON DUPLICATE KEY UPDATE next_value = 10001");
+                "INSERT INTO m_account_number_sequence (scope_key, next_value) VALUES ('CLIENT:GLOBAL:GAP_SCAN', 4000) "
+                        + "ON DUPLICATE KEY UPDATE next_value = 4000");
 
         this.gapPoolManager.refillGapPoolInternal();
 
-        final Integer gapTwentyThousand = this.jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM m_account_number_sequence WHERE scope_key = 'CLIENT:GLOBAL:GAP:20000'", Integer.class);
-        assertEquals(1, gapTwentyThousand);
+        final Integer gapAtNextChunk = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM m_account_number_sequence WHERE scope_key = 'CLIENT:GLOBAL:GAP:4000'", Integer.class);
+        assertEquals(1, gapAtNextChunk);
     }
 
     @Test

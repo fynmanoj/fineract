@@ -168,13 +168,7 @@ class HiLoAccountNumberSequenceServiceGapReuseTest {
         lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
                 eq("account-number-gap-pool-low-watermark"))).thenReturn(10);
         lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-pool-batch-size"))).thenReturn(5);
-        lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
                 eq("account-number-gap-claim-timeout-minutes"))).thenReturn(60);
-        lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("startup-gap-scan-fill-size"))).thenReturn(2000);
-        lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-refill-max-windows"))).thenReturn(50);
         lenient().when(this.jdbcTemplate.update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), any(), any(), any(), any(), any(),
                 any(), any())).thenReturn(5, 4, 0, 0);
         when(this.jdbcTemplate.queryForList(
@@ -246,13 +240,7 @@ class HiLoAccountNumberSequenceServiceGapReuseTest {
         lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
                 eq("account-number-gap-pool-low-watermark"))).thenReturn(10);
         lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-pool-batch-size"))).thenReturn(100);
-        lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
                 eq("account-number-gap-claim-timeout-minutes"))).thenReturn(60);
-        lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("startup-gap-scan-fill-size"))).thenReturn(2000);
-        lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-refill-max-windows"))).thenReturn(50);
         lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM m_account_number_sequence WHERE scope_key LIKE ?"),
                 eq(Integer.class), eq(AccountNumberSequenceAutoConfiguration.GAP_SCOPE_PREFIX + "%"))).thenReturn(10);
         lenient().when(this.jdbcTemplate.update(startsWith("UPDATE m_account_number_sequence"), eq("CLIENT:GLOBAL:CLAIM:%"), any()))

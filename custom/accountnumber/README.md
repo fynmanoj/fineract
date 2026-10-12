@@ -50,14 +50,18 @@ API-only replicas do not schedule this job; only the batch-manager pod runs it p
 
 ## Configuration (`c_configuration`)
 
+Only these four keys are operator-facing. Enable gap reuse only after SEQUENCE_TABLE is set for clients. **`random-account-number` must stay disabled** when using SEQUENCE_TABLE + gap reuse.
+
 | Name | Default | Purpose |
 |------|---------|---------|
-| `account-number-reuse-gaps` | disabled | Master switch for gap reuse |
-| `account-number-gap-pool-batch-size` | 100 | Max GAP rows inserted per discovery pass |
-| `account-number-gap-pool-low-watermark` | 10 | Refill when pool count drops below this |
-| `account-number-gap-claim-timeout-minutes` | 60 | Reclaim orphaned CLAIM rows after N minutes |
-| `startup-gap-scan-fill-size` | 2000 | Suffix range scanned per discovery window |
-| `account-number-gap-refill-max-windows` | 50 | Safety cap on empty scan windows per refill run |
+| `account-number-reuse-gaps` | disabled (`enabled` column) | Master switch for gap reuse and maintenance |
+| `account-number-sequence-block-size` | 250 | Hi-lo block size (fewer DB round trips if increased) |
+| `account-number-gap-pool-low-watermark` | 10 | Refill the GAP pool when available unused suffixes drop below this |
+| `account-number-gap-claim-timeout-minutes` | 60 | Return stuck in-flight CLAIM suffixes to the GAP pool after this many minutes |
+
+### Advanced defaults (code, not `c_configuration`)
+
+These used to be extra `c_configuration` keys. They are now constants in `AccountNumberGapSqlSupport` (scan window 2000, insert batch 100, max empty refill windows 50). Existing tenants that still have `account-number-gap-pool-batch-size`, `startup-gap-scan-fill-size`, `account-number-gap-refill-max-windows`, or the legacy `account-number-gap-scan-window-size` row lose those overrides on the next module changelog run.
 
 ## Multi-instance deployment
 

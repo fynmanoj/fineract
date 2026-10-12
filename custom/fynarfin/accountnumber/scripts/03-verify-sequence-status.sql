@@ -43,7 +43,6 @@ FROM c_configuration
 WHERE name IN (
     'account-number-sequence-block-size',
     'account-number-reuse-gaps',
-    'account-number-gap-pool-batch-size',
     'account-number-gap-pool-low-watermark',
     'account-number-gap-claim-timeout-minutes'
 );

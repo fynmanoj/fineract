@@ -81,7 +81,7 @@ class AccountNumberGapPoolManagerTest {
     }
 
     @Test
-    void refillGapPoolInternal_usesConfiguredScanWindowSizeAndBatchSizeForLimit() {
+    void refillGapPoolInternal_usesHardcodedScanWindowAndBatchSizeForLimit() {
         when(this.jdbcTemplate.queryForObject(eq("SELECT enabled FROM c_configuration WHERE name = ?"), eq(Boolean.class),
                 eq("account-number-reuse-gaps"))).thenReturn(true);
         when(this.jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM m_account_number_sequence WHERE scope_key LIKE ?"), eq(Integer.class),
@@ -89,23 +89,17 @@ class AccountNumberGapPoolManagerTest {
         when(this.jdbcTemplate.queryForObject(startsWith("SELECT COALESCE(MAX("), eq(Long.class))).thenReturn(5000L);
         when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
                 eq("account-number-gap-pool-low-watermark"))).thenReturn(10);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-pool-batch-size"))).thenReturn(100);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("startup-gap-scan-fill-size"))).thenReturn(500);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-refill-max-windows"))).thenReturn(50);
         when(this.jdbcTemplate.queryForObject(eq("SELECT next_value FROM m_account_number_sequence WHERE scope_key = ?"), eq(Long.class),
                 eq("CLIENT:GLOBAL:GAP_SCAN"))).thenReturn(1L);
-        when(this.jdbcTemplate.update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(500L), eq(1L), eq(500L),
-                eq(500L), eq(100))).thenReturn(5);
+        when(this.jdbcTemplate.update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(2000L), eq(1L),
+                eq(2000L), eq(2000L), eq(100))).thenReturn(5);
         when(this.jdbcTemplate.update(startsWith("INSERT INTO m_account_number_sequence (scope_key, next_value) VALUES (?, ?)"),
-                eq("CLIENT:GLOBAL:GAP_SCAN"), eq(501L), eq(501L))).thenReturn(1);
+                eq("CLIENT:GLOBAL:GAP_SCAN"), eq(2001L), eq(2001L))).thenReturn(1);
 
         this.gapPoolManager.refillGapPoolInternal();
 
-        verify(this.jdbcTemplate).update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(500L), eq(1L), eq(500L),
-                eq(500L), eq(100));
+        verify(this.jdbcTemplate).update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(2000L), eq(1L),
+                eq(2000L), eq(2000L), eq(100));
     }
 
     @Test
@@ -117,23 +111,17 @@ class AccountNumberGapPoolManagerTest {
         when(this.jdbcTemplate.queryForObject(startsWith("SELECT COALESCE(MAX("), eq(Long.class))).thenReturn(20_000L);
         when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
                 eq("account-number-gap-pool-low-watermark"))).thenReturn(1);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-pool-batch-size"))).thenReturn(100);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("startup-gap-scan-fill-size"))).thenReturn(10_000);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-refill-max-windows"))).thenReturn(50);
         when(this.jdbcTemplate.queryForObject(eq("SELECT next_value FROM m_account_number_sequence WHERE scope_key = ?"), eq(Long.class),
                 eq("CLIENT:GLOBAL:GAP_SCAN"))).thenReturn(1L);
-        when(this.jdbcTemplate.update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(10_000L), eq(1L),
-                eq(10_000L), eq(10_000L), eq(100))).thenReturn(1);
+        when(this.jdbcTemplate.update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(2000L), eq(1L),
+                eq(2000L), eq(2000L), eq(100))).thenReturn(1);
         when(this.jdbcTemplate.update(startsWith("INSERT INTO m_account_number_sequence (scope_key, next_value) VALUES (?, ?)"),
-                eq("CLIENT:GLOBAL:GAP_SCAN"), eq(10_001L), eq(10_001L))).thenReturn(1);
+                eq("CLIENT:GLOBAL:GAP_SCAN"), eq(2001L), eq(2001L))).thenReturn(1);
 
         this.gapPoolManager.refillGapPoolInternal();
 
-        verify(this.jdbcTemplate).update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(10_000L), eq(1L),
-                eq(10_000L), eq(10_000L), eq(100));
+        verify(this.jdbcTemplate).update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), eq(1L), eq(1L), eq(2000L), eq(1L),
+                eq(2000L), eq(2000L), eq(100));
     }
 
     @Test
@@ -175,12 +163,6 @@ class AccountNumberGapPoolManagerTest {
         when(this.jdbcTemplate.queryForObject(startsWith("SELECT COALESCE(MAX("), eq(Long.class))).thenReturn(100L);
         when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
                 eq("account-number-gap-pool-low-watermark"))).thenReturn(10);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-pool-batch-size"))).thenReturn(100);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("startup-gap-scan-fill-size"))).thenReturn(2000);
-        when(this.jdbcTemplate.queryForObject(eq("SELECT value FROM c_configuration WHERE name = ?"), eq(Integer.class),
-                eq("account-number-gap-refill-max-windows"))).thenReturn(50);
         lenient().when(this.jdbcTemplate.queryForObject(eq("SELECT next_value FROM m_account_number_sequence WHERE scope_key = ?"),
                 eq(Long.class), eq("CLIENT:GLOBAL:GAP_SCAN"))).thenReturn(1L);
         lenient().when(this.jdbcTemplate.update(startsWith("INSERT IGNORE INTO m_account_number_sequence"), any(), any(), any(), any(), any(),

@@ -21,17 +21,14 @@ package org.apache.fineract.infrastructure.accountnumberformat.sequence;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CLAIM_SCOPE_PREFIX;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CLIENT_GLOBAL_SCOPE_KEY;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CLUSTER_GAP_LOCK_PREFIX;
-import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CONFIG_GAP_BATCH_SIZE;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CONFIG_GAP_CLAIM_TIMEOUT_MINUTES;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CONFIG_GAP_LOW_WATERMARK;
-import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CONFIG_GAP_REFILL_MAX_WINDOWS;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CONFIG_REUSE_GAPS;
-import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.CONFIG_STARTUP_GAP_SCAN_FILL_SIZE;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.DEFAULT_GAP_BATCH_SIZE;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.DEFAULT_GAP_CLAIM_TIMEOUT_MINUTES;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.DEFAULT_GAP_LOW_WATERMARK;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.DEFAULT_GAP_REFILL_MAX_WINDOWS;
-import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.DEFAULT_STARTUP_GAP_SCAN_FILL_SIZE;
+import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.DEFAULT_GAP_SCAN_WINDOW_SIZE;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.GAP_SCAN_CURSOR_KEY;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.GAP_SCOPE_PREFIX;
 import static org.apache.fineract.infrastructure.accountnumberformat.sequence.AccountNumberGapSqlSupport.INSERT_GAP_ROWS_SQL;
@@ -236,16 +233,14 @@ class AccountNumberGapPoolManager {
 
     private void executeRefillGapPool() {
         final int lowWatermark = getLowWatermark();
-        final int batchSize = getConfigInt(CONFIG_GAP_BATCH_SIZE, DEFAULT_GAP_BATCH_SIZE);
         final long maxSuffix = queryMaxClientNumericSuffix();
-        if (maxSuffix <= 0 || batchSize <= 0) {
+        if (maxSuffix <= 0) {
             return;
         }
-        final int maxWindows = getGapRefillMaxWindows();
         final long cycleStartCursor = getOrCreateGapScanCursor();
         int windowsWithoutProgress = 0;
         while (countGapRows() < lowWatermark) {
-            final int inserted = insertGapRows(maxSuffix, batchSize);
+            final int inserted = insertGapRows(maxSuffix);
             if (inserted > 0) {
                 windowsWithoutProgress = 0;
                 continue;
@@ -255,18 +250,10 @@ class AccountNumberGapPoolManager {
             if (windowsWithoutProgress > 1 && currentCursor <= cycleStartCursor) {
                 break;
             }
-            if (windowsWithoutProgress >= maxWindows) {
+            if (windowsWithoutProgress >= DEFAULT_GAP_REFILL_MAX_WINDOWS) {
                 break;
             }
         }
-    }
-
-    private int getGapRefillMaxWindows() {
-        return getConfigInt(CONFIG_GAP_REFILL_MAX_WINDOWS, DEFAULT_GAP_REFILL_MAX_WINDOWS);
-    }
-
-    private int getStartupGapScanFillSize() {
-        return getConfigInt(CONFIG_STARTUP_GAP_SCAN_FILL_SIZE, DEFAULT_STARTUP_GAP_SCAN_FILL_SIZE);
     }
 
     private String clusterLockName() {
@@ -284,8 +271,8 @@ class AccountNumberGapPoolManager {
         }
     }
 
-    private int insertGapRows(final long maxSuffix, final int batchSize) {
-        if (batchSize <= 0 || maxSuffix <= 0) {
+    private int insertGapRows(final long maxSuffix) {
+        if (maxSuffix <= 0) {
             return 0;
         }
         final long cursor = getOrCreateGapScanCursor();
@@ -293,12 +280,9 @@ class AccountNumberGapPoolManager {
             updateGapScanCursor(1L);
             return 0;
         }
-        final int scanWindowSize = getStartupGapScanFillSize();
-        if (scanWindowSize <= 0) {
-            return 0;
-        }
-        final long scanEnd = Math.min(cursor + scanWindowSize - 1L, maxSuffix);
-        final int inserted = this.jdbcTemplate.update(INSERT_GAP_ROWS_SQL, cursor, cursor, scanEnd, cursor, scanEnd, scanEnd, batchSize);
+        final long scanEnd = Math.min(cursor + DEFAULT_GAP_SCAN_WINDOW_SIZE - 1L, maxSuffix);
+        final int inserted = this.jdbcTemplate.update(INSERT_GAP_ROWS_SQL, cursor, cursor, scanEnd, cursor, scanEnd, scanEnd,
+                DEFAULT_GAP_BATCH_SIZE);
         updateGapScanCursor(scanEnd >= maxSuffix ? 1L : scanEnd + 1);
         return inserted;
     }

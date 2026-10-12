@@ -8,13 +8,11 @@ WHERE name = 'account-number-reuse-gaps';
 
 COMMIT;
 
-SELECT name, enabled, description
+SELECT name, value, enabled, description
 FROM c_configuration
 WHERE name IN (
     'account-number-reuse-gaps',
-    'account-number-gap-pool-batch-size',
+    'account-number-sequence-block-size',
     'account-number-gap-pool-low-watermark',
-    'account-number-gap-claim-timeout-minutes',
-    'startup-gap-scan-fill-size',
-    'account-number-gap-refill-max-windows'
+    'account-number-gap-claim-timeout-minutes'
 );

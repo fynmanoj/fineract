@@ -20,8 +20,6 @@ CREATE TABLE c_configuration (
 
 INSERT INTO c_configuration (name, value, enabled, description) VALUES
 ('account-number-reuse-gaps', NULL, 1, 'gap reuse'),
-('account-number-gap-pool-batch-size', 100, 1, 'batch'),
+('account-number-sequence-block-size', 250, 1, 'hi-lo block size'),
 ('account-number-gap-pool-low-watermark', 10, 1, 'watermark'),
-('account-number-gap-claim-timeout-minutes', 60, 1, 'claim timeout'),
-('startup-gap-scan-fill-size', 2000, 1, 'scan window'),
-('account-number-gap-refill-max-windows', 50, 1, 'max windows');
+('account-number-gap-claim-timeout-minutes', 60, 1, 'claim timeout');

@@ -27,16 +27,13 @@ final class AccountNumberGapSqlSupport {
     static final String CLUSTER_GAP_LOCK_PREFIX = "fineract:account_number_gap:";
 
     static final String CONFIG_REUSE_GAPS = "account-number-reuse-gaps";
-    static final String CONFIG_GAP_BATCH_SIZE = "account-number-gap-pool-batch-size";
     static final String CONFIG_GAP_LOW_WATERMARK = "account-number-gap-pool-low-watermark";
     static final String CONFIG_GAP_CLAIM_TIMEOUT_MINUTES = "account-number-gap-claim-timeout-minutes";
-    static final String CONFIG_STARTUP_GAP_SCAN_FILL_SIZE = "startup-gap-scan-fill-size";
-    static final String CONFIG_GAP_REFILL_MAX_WINDOWS = "account-number-gap-refill-max-windows";
 
     static final int DEFAULT_GAP_BATCH_SIZE = 100;
     static final int DEFAULT_GAP_LOW_WATERMARK = 10;
     static final int DEFAULT_GAP_CLAIM_TIMEOUT_MINUTES = 60;
-    static final int DEFAULT_STARTUP_GAP_SCAN_FILL_SIZE = 2_000;
+    static final int DEFAULT_GAP_SCAN_WINDOW_SIZE = 2_000;
     static final int DEFAULT_GAP_REFILL_MAX_WINDOWS = 50;
     static final long MAX_NUMERIC_ACCOUNT_NUMBER = 999_999_999L;
 

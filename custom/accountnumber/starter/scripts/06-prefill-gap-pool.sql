@@ -1,10 +1,7 @@
 -- Manual gap pool prefill. Repeat until gaps_inserted_this_run = 0.
 -- Uses the same windowed discovery approach as the application.
 
-SET @batch_size = COALESCE(
-    (SELECT value FROM c_configuration WHERE name = 'account-number-gap-pool-batch-size'),
-    100
-);
+SET @batch_size = 100;
 SET @max_suffix = COALESCE(
     (SELECT MAX(
         CASE
@@ -18,10 +15,7 @@ SET @max_suffix = COALESCE(
      FROM m_client c),
     0
 );
-SET @window_size = COALESCE(
-    (SELECT value FROM c_configuration WHERE name = 'startup-gap-scan-fill-size'),
-    2000
-);
+SET @window_size = 2000;
 SET @cursor = COALESCE(
     (SELECT next_value FROM m_account_number_sequence WHERE scope_key = 'CLIENT:GLOBAL:GAP_SCAN'),
     1
