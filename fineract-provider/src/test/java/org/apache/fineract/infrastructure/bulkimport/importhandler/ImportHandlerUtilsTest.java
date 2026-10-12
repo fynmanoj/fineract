@@ -26,6 +26,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionData;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionEnumData;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.Test;
 
 class ImportHandlerUtilsTest {
@@ -68,4 +72,17 @@ class ImportHandlerUtilsTest {
         assertThat(payload.keySet()).containsExactlyInAnyOrder("transactionDate", "transactionAmount", "paymentTypeId", "locale",
                 "dateFormat");
     }
+
+    @Test
+    void readAsDateFromStringCell() {
+        Workbook workbook = new HSSFWorkbook();
+        Sheet sheet = workbook.createSheet("test");
+        Row row = sheet.createRow(1);
+        row.createCell(0).setCellValue("02 October 2026");
+
+        LocalDate date = ImportHandlerUtils.readAsDate(0, row, DATE_FORMAT);
+
+        assertThat(date).isEqualTo(LocalDate.of(2026, 10, 2));
+    }
+
 }

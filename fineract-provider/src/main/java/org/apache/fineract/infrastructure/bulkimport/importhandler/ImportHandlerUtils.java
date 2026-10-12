@@ -21,6 +21,8 @@ package org.apache.fineract.infrastructure.bulkimport.importhandler;
 import com.google.common.base.Splitter;
 import com.google.gson.JsonObject;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -37,6 +39,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.CellValue;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.IndexedColors;
@@ -141,12 +144,59 @@ public final class ImportHandlerUtils {
     }
 
     public static LocalDate readAsDate(int colIndex, Row row) {
+        return readAsDate(colIndex, row, null);
+    }
+
+    public static LocalDate readAsDate(int colIndex, Row row, String dateFormat) {
         Cell c = row.getCell(colIndex);
         if (c == null || c.getCellType() == CellType.BLANK) {
             return null;
         }
+        FormulaEvaluator eval = row.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+        if (c.getCellType() == CellType.FORMULA) {
+            if (eval != null) {
+                try {
+                    CellValue value = eval.evaluate(c);
+                    if (value.getCellType() == CellType.NUMERIC) {
+                        return LocalDate.ofInstant(DateUtil.getJavaDate(value.getNumberValue()).toInstant(),
+                                DateUtils.getDateTimeZoneOfTenant());
+                    }
+                    if (value.getCellType() == CellType.STRING) {
+                        return parseImportDate(trimEmptyDecimalPortion(value.getStringValue()), dateFormat);
+                    }
+                } catch (Exception e) {
+                    log.error("Cell evaluation error: ", e);
+                }
+            }
+            return null;
+        }
+        if (c.getCellType() == CellType.NUMERIC) {
+            return LocalDate.ofInstant(c.getDateCellValue().toInstant(), DateUtils.getDateTimeZoneOfTenant());
+        }
+        if (c.getCellType() == CellType.STRING) {
+            return parseImportDate(trimEmptyDecimalPortion(c.getStringCellValue()), dateFormat);
+        }
+        return null;
+    }
 
-        return LocalDate.ofInstant(c.getDateCellValue().toInstant(), DateUtils.getDateTimeZoneOfTenant());
+    private static LocalDate parseImportDate(String dateString, String dateFormat) {
+        if (StringUtils.isBlank(dateString)) {
+            return null;
+        }
+        final String trimmedDate = dateString.trim();
+        if (dateFormat != null) {
+            try {
+                return LocalDate.parse(trimmedDate, DateTimeFormatter.ofPattern(dateFormat));
+            } catch (DateTimeParseException ignored) {
+                // fall through to default format
+            }
+        }
+        try {
+            return DateUtils.parseLocalDate(trimmedDate);
+        } catch (Exception e) {
+            log.warn("Unable to parse date string '{}' with format '{}'", trimmedDate, dateFormat);
+            return null;
+        }
     }
 
     public static Boolean readAsBoolean(int colIndex, Row row) {

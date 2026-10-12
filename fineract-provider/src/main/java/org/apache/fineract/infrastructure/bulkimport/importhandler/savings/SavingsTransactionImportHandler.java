@@ -32,6 +32,7 @@ import org.apache.fineract.infrastructure.bulkimport.importhandler.ImportHandler
 import org.apache.fineract.infrastructure.bulkimport.importhandler.ImportHandlerUtils;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionData;
 import org.apache.fineract.portfolio.savings.data.SavingsAccountTransactionEnumData;
+import org.apache.fineract.portfolio.savings.service.SavingsAccountReadPlatformService;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
@@ -49,10 +50,13 @@ public class SavingsTransactionImportHandler implements ImportHandler {
     public static final String DEPOSIT = "Deposit";
     private static final Logger LOG = LoggerFactory.getLogger(SavingsTransactionImportHandler.class);
     private final PortfolioCommandSourceWritePlatformService commandsSourceWritePlatformService;
+    private final SavingsAccountReadPlatformService savingsAccountReadPlatformService;
 
     @Autowired
-    public SavingsTransactionImportHandler(final PortfolioCommandSourceWritePlatformService commandsSourceWritePlatformService) {
+    public SavingsTransactionImportHandler(final PortfolioCommandSourceWritePlatformService commandsSourceWritePlatformService,
+            final SavingsAccountReadPlatformService savingsAccountReadPlatformService) {
         this.commandsSourceWritePlatformService = commandsSourceWritePlatformService;
+        this.savingsAccountReadPlatformService = savingsAccountReadPlatformService;
     }
 
     @Override
@@ -78,7 +82,11 @@ public class SavingsTransactionImportHandler implements ImportHandler {
 
     private SavingsAccountTransactionData readSavingsTransaction(final Workbook workbook, final Row row, Long savingsAccountId,
             final String locale, final String dateFormat) {
-        Long savingsAccountIdCheck = ImportHandlerUtils.readAsLong(TransactionConstants.SAVINGS_ACCOUNT_NO_COL, row);
+        String savingsAccountNo = ImportHandlerUtils.readAsString(TransactionConstants.SAVINGS_ACCOUNT_NO_COL, row);
+        Long savingsAccountIdCheck = null;
+        if (savingsAccountNo != null) {
+            savingsAccountIdCheck = savingsAccountReadPlatformService.retrieveAccountIdByAccountNumber(savingsAccountNo.trim());
+        }
 
         if (savingsAccountIdCheck != null) {
             savingsAccountId = savingsAccountIdCheck;
@@ -92,7 +100,7 @@ public class SavingsTransactionImportHandler implements ImportHandler {
             amount = BigDecimal.valueOf(ImportHandlerUtils.readAsDouble(TransactionConstants.AMOUNT_COL, row));
         }
 
-        LocalDate transactionDate = ImportHandlerUtils.readAsDate(TransactionConstants.TRANSACTION_DATE_COL, row);
+        LocalDate transactionDate = ImportHandlerUtils.readAsDate(TransactionConstants.TRANSACTION_DATE_COL, row, dateFormat);
         String paymentType = ImportHandlerUtils.readAsString(TransactionConstants.PAYMENT_TYPE_COL, row);
         Long paymentTypeId = ImportHandlerUtils.getIdByName(workbook.getSheet(TemplatePopulateImportConstants.EXTRAS_SHEET_NAME),
                 paymentType);
