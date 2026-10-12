@@ -2,6 +2,7 @@ package org.apache.fineract.infrastructure.security.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.infrastructure.configuration.domain.ConfigurationDomainService;
@@ -13,6 +14,8 @@ import org.apache.fineract.infrastructure.security.domain.UserSession;
 import org.apache.fineract.infrastructure.security.domain.UserSessionRepository;
 import org.apache.fineract.useradministration.domain.AppUser;
 import org.apache.fineract.useradministration.exception.UserNotFoundException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
@@ -24,33 +27,36 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SessionHandlerServiceImpl implements SessionHandlerService {
 
+    static final String SESSION_LOCK_PREFIX = "fineract:user_session:";
+    static final int SESSION_LOCK_TIMEOUT_SECONDS = 2;
+
     private final UserSessionRepository userSessionRepository;
     private final AccessTokenGenerationService accessTokenGenerationService;
     private final FineractProperties fineractProperties;
     private final ConfigurationDomainService configurationDomainService;
     private final PlatformUserRepository platformUserRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional
     @Override
     public String createSession(final AppUser user, final String sessionLabel) {
+        if (!user.isAllowMultipleSessions()) {
+            return withUserSessionMutex(user.getId(), () -> createSessionUnlocked(user, sessionLabel));
+        }
+        return createSessionUnlocked(user, sessionLabel);
+    }
+
+    private String createSessionUnlocked(final AppUser user, final String sessionLabel) {
         if (user.isSystemUser()) {
+            final List<UserSession> validSessions = userSessionRepository.findValidHardExpirySessions(user.getId(),
+                    DateUtils.getLocalDateTimeOfTenant());
+            if (!validSessions.isEmpty()) {
+                return validSessions.get(0).getSessionKey();
+            }
             if (!user.isAllowMultipleSessions()) {
-                platformUserRepository.findOneLocked(user.getId()).orElseThrow(() -> new UserNotFoundException(user.getId()));
-                final List<UserSession> validSessions = userSessionRepository.findValidHardExpirySessions(user.getId(),
-                        DateUtils.getLocalDateTimeOfTenant());
-                if (!validSessions.isEmpty()) {
-                    return validSessions.get(0).getSessionKey();
-                }
                 userSessionRepository.deleteAllByUserId(user.getId());
-            } else {
-                final List<UserSession> validSessions = userSessionRepository.findValidHardExpirySessions(user.getId(),
-                        DateUtils.getLocalDateTimeOfTenant());
-                if (!validSessions.isEmpty()) {
-                    return validSessions.get(0).getSessionKey();
-                }
             }
         } else if (!user.isAllowMultipleSessions()) {
-            platformUserRepository.findOneLocked(user.getId()).orElseThrow(() -> new UserNotFoundException(user.getId()));
             userSessionRepository.deleteAllByUserId(user.getId());
         }
 
@@ -117,8 +123,28 @@ public class SessionHandlerServiceImpl implements SessionHandlerService {
     @Transactional
     @Override
     public void invalidateUserSessions(final Long userId) {
-        platformUserRepository.findOneLocked(userId).orElseThrow(() -> new UserNotFoundException(userId));
-        userSessionRepository.deleteAllByUserId(userId);
+        withUserSessionMutex(userId, () -> userSessionRepository.deleteAllByUserId(userId));
+    }
+
+    private <T> T withUserSessionMutex(final Long userId, final Supplier<T> action) {
+        final String lockName = SESSION_LOCK_PREFIX + userId;
+        final Integer acquired = this.jdbcTemplate.queryForObject("SELECT GET_LOCK(?, ?)", Integer.class, lockName,
+                SESSION_LOCK_TIMEOUT_SECONDS);
+        if (acquired == null || acquired != 1) {
+            throw new PessimisticLockingFailureException("Could not acquire session lock for user " + userId);
+        }
+        try {
+            return action.get();
+        } finally {
+            this.jdbcTemplate.queryForObject("SELECT RELEASE_LOCK(?)", Integer.class, lockName);
+        }
+    }
+
+    private void withUserSessionMutex(final Long userId, final Runnable action) {
+        withUserSessionMutex(userId, () -> {
+            action.run();
+            return null;
+        });
     }
 
     private int resolveIdleTimeoutMinutes() {

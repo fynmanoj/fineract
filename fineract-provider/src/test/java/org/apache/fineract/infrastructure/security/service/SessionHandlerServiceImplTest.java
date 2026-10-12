@@ -40,6 +40,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,6 +55,8 @@ public class SessionHandlerServiceImplTest {
     private ConfigurationDomainService configurationDomainService;
     @Mock
     private PlatformUserRepository platformUserRepository;
+    @Mock
+    private JdbcTemplate jdbcTemplate;
 
     private FineractProperties fineractProperties;
     private SessionHandlerServiceImpl underTest;
@@ -75,19 +79,19 @@ public class SessionHandlerServiceImplTest {
         fineractProperties.setSecurity(security);
 
         underTest = new SessionHandlerServiceImpl(userSessionRepository, accessTokenGenerationService, fineractProperties,
-                configurationDomainService, platformUserRepository);
+                configurationDomainService, platformUserRepository, jdbcTemplate);
+        stubSessionLockAcquired();
     }
 
     @Test
     public void createSessionForHumanUserUsesSlidingIdlePolicy() {
         final AppUser user = humanUser(1L, "human", false);
         when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-1");
-        when(platformUserRepository.findOneLocked(1L)).thenReturn(Optional.of(user));
 
         final String token = underTest.createSession(user, null);
 
         assertEquals("token-1", token);
-        verify(platformUserRepository).findOneLocked(1L);
+        verify(jdbcTemplate).queryForObject(eq("SELECT GET_LOCK(?, ?)"), eq(Integer.class), eq("fineract:user_session:1"), eq(2));
         verify(userSessionRepository).deleteAllByUserId(1L);
         final ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
         verify(userSessionRepository).save(captor.capture());
@@ -99,12 +103,11 @@ public class SessionHandlerServiceImplTest {
     public void createSessionForSystemUserUsesHardExpiryPolicy() {
         final AppUser user = systemUser(2L, "integration", 3600, false);
         when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-2");
-        when(platformUserRepository.findOneLocked(2L)).thenReturn(Optional.of(user));
         when(userSessionRepository.findValidHardExpirySessions(eq(2L), any(LocalDateTime.class))).thenReturn(List.of());
 
         underTest.createSession(user, "client-a");
 
-        verify(platformUserRepository).findOneLocked(2L);
+        verify(jdbcTemplate).queryForObject(eq("SELECT GET_LOCK(?, ?)"), eq(Integer.class), eq("fineract:user_session:2"), eq(2));
         verify(userSessionRepository).deleteAllByUserId(2L);
         final ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
         verify(userSessionRepository).save(captor.capture());
@@ -121,7 +124,6 @@ public class SessionHandlerServiceImplTest {
         final AppUser user = systemUser(5L, "integration", 3600, false);
         final UserSession existingSession = new UserSession();
         existingSession.setSessionKey("existing-token");
-        when(platformUserRepository.findOneLocked(5L)).thenReturn(Optional.of(user));
         when(userSessionRepository.findValidHardExpirySessions(eq(5L), any(LocalDateTime.class))).thenReturn(List.of(existingSession));
 
         assertEquals("existing-token", underTest.createSession(user, "client-a"));
@@ -135,7 +137,6 @@ public class SessionHandlerServiceImplTest {
     public void createSessionForSystemUserCreatesNewWhenNoValidSession() {
         final AppUser user = systemUser(6L, "integration", 3600, false);
         when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-6");
-        when(platformUserRepository.findOneLocked(6L)).thenReturn(Optional.of(user));
         when(userSessionRepository.findValidHardExpirySessions(eq(6L), any(LocalDateTime.class))).thenReturn(List.of());
 
         assertEquals("token-6", underTest.createSession(user, null));
@@ -148,21 +149,33 @@ public class SessionHandlerServiceImplTest {
     public void createSessionSkipsEvictionWhenMultipleSessionsAllowed() {
         final AppUser user = systemUser(3L, "multi", 3600, true);
         when(accessTokenGenerationService.generateRandomToken()).thenReturn("token-3");
+        when(userSessionRepository.findValidHardExpirySessions(eq(3L), any(LocalDateTime.class))).thenReturn(List.of());
 
         underTest.createSession(user, null);
 
-        verify(platformUserRepository, never()).findOneLocked(3L);
+        verify(jdbcTemplate, never()).queryForObject(eq("SELECT GET_LOCK(?, ?)"), eq(Integer.class), eq("fineract:user_session:3"), eq(2));
         verify(userSessionRepository, never()).deleteAllByUserId(eq(3L));
     }
 
     @Test
-    public void invalidateUserSessionsLocksUserAndDeletesSessions() {
-        when(platformUserRepository.findOneLocked(4L)).thenReturn(Optional.of(mock(AppUser.class)));
-
+    public void invalidateUserSessionsUsesSessionMutexAndDeletesSessions() {
         underTest.invalidateUserSessions(4L);
 
-        verify(platformUserRepository).findOneLocked(4L);
+        verify(jdbcTemplate).queryForObject(eq("SELECT GET_LOCK(?, ?)"), eq(Integer.class), eq("fineract:user_session:4"), eq(2));
         verify(userSessionRepository).deleteAllByUserId(4L);
+        verify(jdbcTemplate).queryForObject(eq("SELECT RELEASE_LOCK(?)"), eq(Integer.class), eq("fineract:user_session:4"));
+    }
+
+    @Test
+    public void createSessionFailsFastWhenSessionMutexNotAcquired() {
+        final AppUser user = humanUser(1L, "human", false);
+        when(jdbcTemplate.queryForObject(eq("SELECT GET_LOCK(?, ?)"), eq(Integer.class), eq("fineract:user_session:1"), eq(2)))
+                .thenReturn(0);
+
+        assertThrows(PessimisticLockingFailureException.class, () -> underTest.createSession(user, null));
+
+        verify(userSessionRepository, never()).deleteAllByUserId(1L);
+        verify(userSessionRepository, never()).save(any());
     }
 
     @Test
@@ -213,6 +226,11 @@ public class SessionHandlerServiceImplTest {
         assertThrows(SessionAuthenticationException.class, () -> underTest.validateAndExtractUsername("expired-token"));
     }
 
+    private void stubSessionLockAcquired() {
+        lenient().when(jdbcTemplate.queryForObject(eq("SELECT GET_LOCK(?, ?)"), eq(Integer.class), any(), eq(2))).thenReturn(1);
+        lenient().when(jdbcTemplate.queryForObject(eq("SELECT RELEASE_LOCK(?)"), eq(Integer.class), any())).thenReturn(1);
+    }
+
     private LocalDateTime now() {
         return DateUtils.getLocalDateTimeOfTenant();
     }
@@ -220,8 +238,8 @@ public class SessionHandlerServiceImplTest {
     private AppUser humanUser(final Long id, final String username, final boolean allowMultipleSessions) {
         final AppUser user = mock(AppUser.class);
         when(user.getId()).thenReturn(id);
-        when(user.getUsername()).thenReturn(username);
-        when(user.isSystemUser()).thenReturn(false);
+        lenient().when(user.getUsername()).thenReturn(username);
+        lenient().when(user.isSystemUser()).thenReturn(false);
         when(user.isAllowMultipleSessions()).thenReturn(allowMultipleSessions);
         return user;
     }
