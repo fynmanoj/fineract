@@ -18,7 +18,9 @@
  */
 package org.apache.fineract.portfolio.delinquency.starter;
 
+import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
 import org.apache.fineract.infrastructure.event.business.service.BusinessEventNotifierService;
+import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.portfolio.delinquency.domain.DelinquencyBucketMappingsRepository;
 import org.apache.fineract.portfolio.delinquency.domain.DelinquencyBucketRepository;
 import org.apache.fineract.portfolio.delinquency.domain.DelinquencyRangeRepository;
@@ -42,6 +44,7 @@ import org.apache.fineract.portfolio.loanaccount.domain.LoanRepository;
 import org.apache.fineract.portfolio.loanaccount.domain.LoanRepositoryWrapper;
 import org.apache.fineract.portfolio.loanproduct.domain.LoanProductRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -74,11 +77,13 @@ public class DelinquencyConfiguration {
             LoanInstallmentDelinquencyTagRepository loanInstallmentDelinquencyTagRepository,
             DelinquencyReadPlatformService delinquencyReadPlatformService, LoanDelinquencyActionRepository loanDelinquencyActionRepository,
             DelinquencyActionParseAndValidator delinquencyActionParseAndValidator,
-            DelinquencyEffectivePauseHelper delinquencyEffectivePauseHelper) {
+            DelinquencyEffectivePauseHelper delinquencyEffectivePauseHelper, ApplicationContext applicationContext,
+            PlatformSecurityContext context, ToApiJsonSerializer toApiResultJsonSerializer) {
         return new DelinquencyWritePlatformServiceImpl(dataValidatorBucket, dataValidatorRange, repositoryRange, repositoryBucket,
                 repositoryBucketMappings, loanDelinquencyTagRepository, loanRepository, loanProductRepository, businessEventNotifierService,
-                loanDelinquencyDomainService, loanInstallmentDelinquencyTagRepository, delinquencyReadPlatformService,
-                loanDelinquencyActionRepository, delinquencyActionParseAndValidator, delinquencyEffectivePauseHelper);
+                applicationContext, context, toApiResultJsonSerializer, loanDelinquencyDomainService,
+                loanInstallmentDelinquencyTagRepository, delinquencyReadPlatformService, loanDelinquencyActionRepository,
+                delinquencyActionParseAndValidator, delinquencyEffectivePauseHelper);
     }
 
     @Bean

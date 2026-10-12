@@ -47,7 +47,9 @@ import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.infrastructure.core.service.ThreadLocalContextUtil;
 import org.apache.fineract.infrastructure.event.business.domain.loan.LoanAccountDelinquencyPauseChangedBusinessEvent;
 import org.apache.fineract.infrastructure.event.business.domain.loan.LoanDelinquencyRangeChangeBusinessEvent;
+import org.apache.fineract.infrastructure.core.serialization.ToApiJsonSerializer;
 import org.apache.fineract.infrastructure.event.business.service.BusinessEventNotifierService;
+import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.portfolio.delinquency.domain.DelinquencyAction;
 import org.apache.fineract.portfolio.delinquency.domain.DelinquencyBucket;
 import org.apache.fineract.portfolio.delinquency.domain.DelinquencyBucketMappingsRepository;
@@ -84,6 +86,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationContext;
 
 @ExtendWith(MockitoExtension.class)
 public class DelinquencyWritePlatformServiceRangeChangeEventTest {
@@ -106,6 +109,12 @@ public class DelinquencyWritePlatformServiceRangeChangeEventTest {
     private LoanProductRepository loanProductRepository;
     @Mock
     private BusinessEventNotifierService businessEventNotifierService;
+    @Mock
+    private ApplicationContext applicationContext;
+    @Mock
+    private PlatformSecurityContext context;
+    @Mock
+    private ToApiJsonSerializer toApiResultJsonSerializer;
     @Mock
     private LoanDelinquencyDomainService loanDelinquencyDomainService;
     @Mock
