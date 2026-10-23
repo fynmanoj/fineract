@@ -360,4 +360,18 @@ public class Guarantor extends AbstractPersistableCustom {
         }
         return isSelf;
     }
+
+    public String getMobileNumber() {
+        return this.mobilePhoneNumber;
+    }
+
+    public String getDisplayName() {
+        if (StringUtils.isBlank(this.firstname)) {
+            return this.lastname;
+        }
+        if (StringUtils.isBlank(this.lastname)) {
+            return this.firstname;
+        }
+        return this.firstname + " " + this.lastname;
+    }
 }

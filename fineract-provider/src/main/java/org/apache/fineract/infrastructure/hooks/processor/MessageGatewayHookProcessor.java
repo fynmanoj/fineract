@@ -26,9 +26,11 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.fineract.infrastructure.core.domain.FineractContext;
 import org.apache.fineract.infrastructure.core.exception.GeneralPlatformDomainRuleException;
 import org.apache.fineract.infrastructure.hooks.domain.Hook;
@@ -36,8 +38,12 @@ import org.apache.fineract.infrastructure.hooks.domain.HookConfiguration;
 import org.apache.fineract.infrastructure.sms.domain.SmsMessage;
 import org.apache.fineract.infrastructure.sms.domain.SmsMessageRepository;
 import org.apache.fineract.infrastructure.sms.scheduler.SmsMessageScheduledJobService;
+import org.apache.fineract.organisation.staff.domain.Staff;
+import org.apache.fineract.organisation.staff.domain.StaffRepositoryWrapper;
 import org.apache.fineract.portfolio.client.domain.Client;
 import org.apache.fineract.portfolio.client.domain.ClientRepositoryWrapper;
+import org.apache.fineract.portfolio.loanaccount.guarantor.domain.Guarantor;
+import org.apache.fineract.portfolio.loanaccount.guarantor.domain.GuarantorRepository;
 import org.apache.fineract.template.domain.Template;
 import org.apache.fineract.template.domain.TemplateRepository;
 import org.apache.fineract.template.service.TemplateMergeService;
@@ -54,6 +60,8 @@ public class MessageGatewayHookProcessor implements HookProcessor {
 
     private final SmsMessageRepository smsMessageRepository;
     private final SmsMessageScheduledJobService smsMessageScheduledJobService;
+    private final GuarantorRepository guarantorRepository;
+    private final StaffRepositoryWrapper staffRepositoryWrapper;
 
     @Override
     public void process(final Hook hook, final String payload, final String entityName, final String actionName,
@@ -99,23 +107,87 @@ public class MessageGatewayHookProcessor implements HookProcessor {
             reqMap.put("loanId", loanId);
         }
 
+        if (isGuarantorRecipientEvent(entityName, actionName)) {
+            sendGuarantorSms(hook, template, reqMap, SMSProviderId);
+            return;
+        }
+
         if (reqMap.get("clientId") != null) {
             Long clientId = (long) Double.parseDouble(String.valueOf(reqMap.get("clientId")));
             Client client = clientRepository.findOneWithNotFoundDetection(clientId);
             reqMap.put("clientId", clientId);
             reqMap.put("clientName", client.getDisplayName());
-
-            log.info("MessageGatewayHookProcessor -- process -- create smsText");
-            // 3: compile template using Mustache
-            String smsText = this.templateMergeService.compile(template, reqMap, hook);
-            // 4 : send message to the url
-
-            log.info("MessageGatewayHookProcessor -- process -- create smsText done {}", smsText);
-
-            SmsMessage smsMessage = SmsMessage.pendingSms(null, null, client, null, smsText, client.mobileNo(), null, false);
-            this.smsMessageRepository.save(smsMessage);
-            smsMessageScheduledJobService.sendTriggeredMessage(Collections.singleton(smsMessage), SMSProviderId);
+            queueSms(hook, template, reqMap, client, null, client.mobileNo(), SMSProviderId);
         }
     }
+
+    private boolean isGuarantorRecipientEvent(final String entityName, final String actionName) {
+        return "GUARANTOR".equals(entityName) && ("CREATE".equals(actionName) || "UPDATE".equals(actionName));
+    }
+
+    private void sendGuarantorSms(final Hook hook, final Template template, final Map<String, Object> reqMap, final Integer smsProviderId)
+            throws IOException {
+        final Long guarantorId = resourceId(reqMap);
+        if (guarantorId == null) {
+            log.info("MessageGatewayHookProcessor -- process -- guarantor id missing, skipping SMS");
+            return;
+        }
+        final Optional<Guarantor> guarantor = this.guarantorRepository.findById(guarantorId);
+        if (guarantor.isEmpty()) {
+            log.info("MessageGatewayHookProcessor -- process -- guarantor {} not found, skipping SMS", guarantorId);
+            return;
+        }
+        final SmsRecipient recipient = resolveGuarantorRecipient(guarantor.get());
+        if (recipient == null || StringUtils.isBlank(recipient.mobileNo())) {
+            log.info("MessageGatewayHookProcessor -- process -- guarantor {} has no mobile number, skipping SMS", guarantorId);
+            return;
+        }
+        reqMap.put("clientName", recipient.clientName());
+        if (recipient.client() != null) {
+            reqMap.put("clientId", recipient.client().getId());
+        }
+        queueSms(hook, template, reqMap, recipient.client(), recipient.staff(), recipient.mobileNo(), smsProviderId);
+    }
+
+    private SmsRecipient resolveGuarantorRecipient(final Guarantor guarantor) {
+        if (guarantor.isExistingCustomer()) {
+            final Client client = this.clientRepository.findOneWithNotFoundDetection(guarantor.getEntityId());
+            return new SmsRecipient(client, null, client.mobileNo(), client.getDisplayName());
+        }
+        if (guarantor.isExistingEmployee()) {
+            final Staff staff = this.staffRepositoryWrapper.findOneWithNotFoundDetection(guarantor.getEntityId());
+            return new SmsRecipient(null, staff, staff.mobileNo(), staff.displayName());
+        }
+        if (guarantor.isExternalGuarantor()) {
+            return new SmsRecipient(null, null, guarantor.getMobileNumber(), guarantor.getDisplayName());
+        }
+        log.info("MessageGatewayHookProcessor -- process -- unsupported guarantor type {}", guarantor.getGurantorType());
+        return null;
+    }
+
+    private Long resourceId(final Map<String, Object> reqMap) {
+        final Object response = reqMap.get("response");
+        if (!(response instanceof Map<?, ?> responseMap)) {
+            return null;
+        }
+        final Object resourceId = responseMap.get("resourceId");
+        if (resourceId == null) {
+            return null;
+        }
+        return (long) Double.parseDouble(String.valueOf(resourceId));
+    }
+
+    private void queueSms(final Hook hook, final Template template, final Map<String, Object> reqMap, final Client client, final Staff staff,
+            final String mobileNo, final Integer smsProviderId) throws IOException {
+        log.info("MessageGatewayHookProcessor -- process -- create smsText");
+        final String smsText = this.templateMergeService.compile(template, reqMap, hook);
+        log.info("MessageGatewayHookProcessor -- process -- create smsText done {}", smsText);
+
+        final SmsMessage smsMessage = SmsMessage.pendingSms(null, null, client, staff, smsText, mobileNo, null, false);
+        this.smsMessageRepository.save(smsMessage);
+        this.smsMessageScheduledJobService.sendTriggeredMessage(Collections.singleton(smsMessage), smsProviderId);
+    }
+
+    private record SmsRecipient(Client client, Staff staff, String mobileNo, String clientName) {}
 
 }

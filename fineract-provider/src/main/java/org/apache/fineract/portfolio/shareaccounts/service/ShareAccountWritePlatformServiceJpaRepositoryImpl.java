@@ -90,6 +90,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(account.getId()) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
             handleDataIntegrityIssues(jsonCommand, dve.getMostSpecificCause(), dve);
@@ -184,6 +186,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -218,6 +222,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -262,6 +268,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -296,6 +304,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -333,6 +343,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -355,6 +367,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -392,6 +406,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -421,6 +437,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -457,6 +475,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
@@ -491,6 +511,8 @@ public class ShareAccountWritePlatformServiceJpaRepositoryImpl implements ShareA
             return new CommandProcessingResultBuilder() //
                     .withCommandId(jsonCommand.commandId()) //
                     .withEntityId(accountId) //
+                    .withClientId(account.getClientId()) //
+                    .withOfficeId(account.getOfficeId()) //
                     .with(changes) //
                     .build();
         } catch (final JpaSystemException | DataIntegrityViolationException dve) {
